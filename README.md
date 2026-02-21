@@ -35,8 +35,7 @@ qa_agent_legal_tax/
 └── requirements.txt            # Dependencies
 ```
 
-## Installation
-
+## Installation & Quick Start
 1. Clone the repository:
 ```bash
 git clone <repository-url>
@@ -66,6 +65,13 @@ LLM_PROVIDER=gemini
 EMBEDDING_PROVIDER=gemini
 GOOGLE_API_KEY=your_google_api_key_here
 ```
+
+5. **Verify and run**
+   ```bash
+   python scripts/test_system.py
+   python scripts/demo_agent.py
+   python main.py
+   ```
 
 ## Usage
 
@@ -117,38 +123,18 @@ print(f"Confidence: {response.confidence_score:.1%}")
 
 ## Configuration
 
-Edit `config.py` or set environment variables:
+Set environment variables in .env (or edit `config.py`):
 
 - `LLM_PROVIDER`: `openai` or `gemini` (default: `gemini`)
 - `EMBEDDING_PROVIDER`: `openai` or `gemini` (default: `gemini`)
 - `OPENAI_API_KEY`: Required when using OpenAI
 - `GOOGLE_API_KEY`: Required when using Gemini
-- `LLM_MODEL`: OpenAI chat model (default: `gpt-4o`)
-- `GEMINI_LLM_MODEL`: Gemini chat model (default: `gemini-1.5-pro`)
+- `LLM_MODEL`: Gemini chat model (default: `emini-2.5-flash`)
+- `GEMINI_LLM_MODEL`: Gemini chat model (default: `gemini-2.5-flash`)
 - `EMBEDDING_MODEL`: OpenAI embedding model (default: `text-embedding-3-small`)
 - `GEMINI_EMBEDDING_MODEL`: Gemini embedding model (default: `models/text-embedding-004`)
 - `RETRIEVAL_TOP_K`: Number of documents to retrieve (default: 5)
 - `LOG_LEVEL`: Logging level (DEBUG, INFO, WARNING, ERROR)
-
-### Provider Examples
-
-OpenAI setup:
-```bash
-LLM_PROVIDER=openai
-EMBEDDING_PROVIDER=openai
-OPENAI_API_KEY=sk-...
-LLM_MODEL=gpt-4o
-EMBEDDING_MODEL=text-embedding-3-small
-```
-
-Gemini setup:
-```bash
-LLM_PROVIDER=gemini
-EMBEDDING_PROVIDER=gemini
-GOOGLE_API_KEY=AIza...
-GEMINI_LLM_MODEL=gemini-1.5-pro
-GEMINI_EMBEDDING_MODEL=models/text-embedding-004
-```
 
 ## Development
 
@@ -168,6 +154,15 @@ flake8 src/
 ### Logging
 
 Logs are written to `logs/qa_agent.log` and console.
+
+### Troubleshooting
+
+- `No documents available for retrieval`
+  - Ensure `data/acts_chunked/` contains chunked JSON files.
+- `OPENAI_API_KEY` or `GOOGLE_API_KEY` error
+  - Confirm the selected provider and matching key are correctly set in `.env`.
+- `Module not found`
+  - Reinstall dependencies: `pip install -r requirements.txt`.
 
 ## Data Pipeline
 
@@ -199,7 +194,6 @@ Hybrid retrieval combines:
 
 ## Limitations
 
-- English language only
 - Requires valid API key for selected provider (`OPENAI_API_KEY` or `GOOGLE_API_KEY`)
 - Response quality depends on document quality and query clarity
 - Professional legal consultation recommended for critical decisions
