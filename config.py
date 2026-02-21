@@ -36,11 +36,11 @@ class Config:
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
     # Provider Configuration
-    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")  # openai | gemini
-    EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "openai")  # openai | gemini
+    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")  # openai | gemini
+    EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "gemini")  # openai | gemini
     
     # LLM Configuration
-    LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4-turbo-preview")
+    LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o")
     LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.3"))
     LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "2000"))
 
@@ -50,7 +50,7 @@ class Config:
     
     # Embedding Configuration
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
-    EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "1536"))
+    EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "768"))
     
     # Retrieval Configuration
     RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "5"))

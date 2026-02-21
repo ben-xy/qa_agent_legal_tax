@@ -20,7 +20,7 @@ class EmbeddingService:
             config: Configuration dictionary
         """
         self.config = config
-        self.provider = self._config_get('embedding_provider', 'openai').lower()
+        self.provider = self._config_get('embedding_provider', 'gemini').lower()
         self.model = self._config_get('embedding_model', 'text-embedding-3-small')
         self.dimension = int(self._config_get('embedding_dimension', 1536))
         self.client = None

@@ -19,7 +19,7 @@ class LLMService:
             config: Configuration dictionary with API keys and model names
         """
         self.config = config
-        self.provider = self._config_get('llm_provider', 'openai').lower()
+        self.provider = self._config_get('llm_provider', 'gemini').lower()
         self.model = self._config_get('llm_model', 'gpt-4-turbo-preview')
         self.temperature = float(self._config_get('llm_temperature', 0.3))
         self.max_tokens = int(self._config_get('llm_max_tokens', 2000))

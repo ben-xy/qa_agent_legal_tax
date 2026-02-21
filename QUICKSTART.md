@@ -16,7 +16,7 @@ cp .env.example .env
 
 Edit `.env` and choose one provider setup.
 
-### Option A: OpenAI (default)
+### Option A: OpenAI
 
 ```dotenv
 LLM_PROVIDER=openai
@@ -30,7 +30,7 @@ LLM_TEMPERATURE=0.3
 LLM_MAX_TOKENS=2000
 ```
 
-### Option B: Google Gemini
+### Option B: Google Gemini (default)
 
 ```dotenv
 LLM_PROVIDER=gemini

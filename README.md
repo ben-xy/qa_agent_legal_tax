@@ -56,7 +56,7 @@ cp .env.example .env
 
 4. Choose provider in `.env`:
 ```bash
-# Option A: OpenAI (default)
+# Option A: OpenAI
 LLM_PROVIDER=openai
 EMBEDDING_PROVIDER=openai
 OPENAI_API_KEY=your_openai_api_key_here
@@ -119,11 +119,11 @@ print(f"Confidence: {response.confidence_score:.1%}")
 
 Edit `config.py` or set environment variables:
 
-- `LLM_PROVIDER`: `openai` or `gemini` (default: `openai`)
-- `EMBEDDING_PROVIDER`: `openai` or `gemini` (default: `openai`)
+- `LLM_PROVIDER`: `openai` or `gemini` (default: `gemini`)
+- `EMBEDDING_PROVIDER`: `openai` or `gemini` (default: `gemini`)
 - `OPENAI_API_KEY`: Required when using OpenAI
 - `GOOGLE_API_KEY`: Required when using Gemini
-- `LLM_MODEL`: OpenAI chat model (default: `gpt-4-turbo-preview`)
+- `LLM_MODEL`: OpenAI chat model (default: `gpt-4o`)
 - `GEMINI_LLM_MODEL`: Gemini chat model (default: `gemini-1.5-pro`)
 - `EMBEDDING_MODEL`: OpenAI embedding model (default: `text-embedding-3-small`)
 - `GEMINI_EMBEDDING_MODEL`: Gemini embedding model (default: `models/text-embedding-004`)
