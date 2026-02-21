@@ -4,6 +4,36 @@
 
 This QA Agent provides intelligent question-answering capabilities for Singapore legal, tax, and compliance questions. It uses Retrieval-Augmented Generation (RAG) with hybrid retrieval combining keyword search and vector similarity.
 
+### Data Flow Pipeline
+
+```
+User Query
+    ↓
+Query Classification (tax/financial/compliance/general)
+    ↓
+Document Retrieval (Hybrid: BM25 + Vector Search)
+    ↓
+Context Formatting
+    ↓
+LLM Answer Generation (Gemini)
+    ↓
+Answer Validation & Citation Extraction
+    ↓
+Confidence Scoring
+    ↓
+Response Formatting
+    ↓
+Display to User
+```
+
+### Core Components
+
+1. **QAAgent** - Main orchestrator for processing queries
+2. **HybridRetriever** - Document retrieval from acts_chunked/ directory
+3. **LLMService** - LLM service integration （Gemini and ChatGPT）
+4. **LegalValidator** - Answer validation and legal citation extraction
+5. **Configuration System** - Environment-based config management
+
 ## Features
 
 - **Legal & Tax QA**: Answer questions about Singapore acts, regulations, and tax rules
