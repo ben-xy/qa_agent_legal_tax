@@ -130,11 +130,21 @@ class QAAgent:
         """Classify query into: general, compliance, financial, tax."""
         query_lower = query.lower()
         
-        if any(kw in query_lower for kw in ['tax', 'income', 'gst', 'iras']):
+        # Tax-related keywords
+        tax_keywords = ['tax', 'gst', 'iras', 'income tax']
+        # Financial-related keywords
+        financial_keywords = ['balance sheet', 'income statement', 'financial']
+        # Compliance-related keywords
+        compliance_keywords = ['deadline', 'file', 'report', 'comply']
+        
+        # Check if query contains tax keywords
+        if any(kw in query_lower for kw in tax_keywords):
             return 'tax'
-        elif any(kw in query_lower for kw in ['balance sheet', 'income statement', 'financial']):
+        # Check if query contains financial keywords
+        elif any(kw in query_lower for kw in financial_keywords):
             return 'financial'
-        elif any(kw in query_lower for kw in ['deadline', 'file', 'report', 'comply']):
+        # Check if query contains compliance keywords
+        elif any(kw in query_lower for kw in compliance_keywords):
             return 'compliance'
         else:
             return 'general'

@@ -20,7 +20,7 @@ class LLMService:
         """
         self.config = config
         self.provider = self._config_get('llm_provider', 'gemini').lower()
-        self.model = self._config_get('llm_model', 'gpt-4-turbo-preview')
+        self.model = self._config_get('llm_model', 'gemini-2.5-pro')
         self.temperature = float(self._config_get('llm_temperature', 0.3))
         self.max_tokens = int(self._config_get('llm_max_tokens', 2000))
         self.client = None
@@ -41,6 +41,7 @@ class LLMService:
                 if not api_key:
                     raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER=openai")
 
+                self.model = self._config_get('openai_llm_model', self.model)
                 self.client = openai.OpenAI(api_key=api_key)
             except ImportError as exc:
                 logger.error("OpenAI package not installed")
@@ -54,8 +55,8 @@ class LLMService:
                 if not api_key:
                     raise ValueError("GOOGLE_API_KEY is required when LLM_PROVIDER=gemini")
 
+                self.model = self._config_get('gemini_llm_model', self.model)
                 self.client = genai.Client(api_key=api_key)
-                self.model = self._config_get('gemini_llm_model', 'gemini-1.5-pro')
             except ImportError as exc:
                 logger.error("google-genai package not installed")
                 raise ImportError("Please install google-genai package") from exc

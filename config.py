@@ -40,12 +40,12 @@ class Config:
     EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "gemini")  # openai | gemini
     
     # LLM Configuration
-    LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o")
+    LLM_MODEL = os.getenv("LLM_MODEL", "gemini-2.5-pro")
     LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.3"))
     LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "2000"))
 
     # Gemini Configuration
-    GEMINI_LLM_MODEL = os.getenv("GEMINI_LLM_MODEL", "gemini-1.5-pro")
+    GEMINI_LLM_MODEL = os.getenv("GEMINI_LLM_MODEL", "gemini-2.5-pro")
     GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "models/text-embedding-004")
     
     # Embedding Configuration
