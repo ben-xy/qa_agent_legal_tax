@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 import re
 import json
+import numpy as np
 
 try:
     from rank_bm25 import BM25Okapi
