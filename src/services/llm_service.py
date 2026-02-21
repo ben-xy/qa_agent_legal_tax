@@ -3,13 +3,13 @@ LLM service for answer generation using OpenAI GPT API.
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class LLMService:
-    """Service for LLM-based answer generation."""
+    """Service for LLM-based answer generation using OpenAI or Gemini."""
     
     def __init__(self, config: Dict):
         """
@@ -19,16 +19,48 @@ class LLMService:
             config: Configuration dictionary with API keys and model names
         """
         self.config = config
-        self.model = config.get('llm_model', 'gpt-4-turbo-preview')
-        self.temperature = config.get('llm_temperature', 0.3)
-        self.max_tokens = config.get('llm_max_tokens', 2000)
-        
-        try:
-            import openai
-            self.client = openai.OpenAI(api_key=config.get('openai_api_key'))
-        except ImportError:
-            logger.error("OpenAI package not installed")
-            raise
+        self.provider = self._config_get('llm_provider', 'openai').lower()
+        self.model = self._config_get('llm_model', 'gpt-4-turbo-preview')
+        self.temperature = float(self._config_get('llm_temperature', 0.3))
+        self.max_tokens = int(self._config_get('llm_max_tokens', 2000))
+        self.client = None
+
+        self._init_client()
+
+    def _config_get(self, key: str, default: Any = None) -> Any:
+        """Get config value with lowercase + uppercase compatibility."""
+        return self.config.get(key, self.config.get(key.upper(), default))
+
+    def _init_client(self) -> None:
+        """Initialize provider-specific LLM client."""
+        if self.provider == 'openai':
+            try:
+                import openai
+
+                api_key = self._config_get('openai_api_key')
+                if not api_key:
+                    raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER=openai")
+
+                self.client = openai.OpenAI(api_key=api_key)
+            except ImportError as exc:
+                logger.error("OpenAI package not installed")
+                raise ImportError("Please install openai package") from exc
+
+        elif self.provider == 'gemini':
+            try:
+                from google import genai
+
+                api_key = self._config_get('google_api_key')
+                if not api_key:
+                    raise ValueError("GOOGLE_API_KEY is required when LLM_PROVIDER=gemini")
+
+                self.client = genai.Client(api_key=api_key)
+                self.model = self._config_get('gemini_llm_model', 'gemini-1.5-pro')
+            except ImportError as exc:
+                logger.error("google-genai package not installed")
+                raise ImportError("Please install google-genai package") from exc
+        else:
+            raise ValueError(f"Unsupported llm provider: {self.provider}")
     
     def generate_answer(self, 
                        query: str,
@@ -64,22 +96,13 @@ class LLMService:
             
             logger.debug(f"System prompt: {system_prompt[:100]}...")
             logger.debug(f"User prompt length: {len(user_message)} chars")
-            
-            # Call OpenAI API
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
-                ],
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                top_p=0.95
-            )
-            
-            answer = response.choices[0].message.content.strip()
-            
-            logger.info(f"Generated answer (tokens: {response.usage.completion_tokens})")
+
+            if self.provider == 'openai':
+                answer = self._generate_openai(system_prompt, user_message)
+            else:
+                answer = self._generate_gemini(system_prompt, user_message)
+
+            logger.info(f"Generated answer using provider={self.provider}, model={self.model}")
             
             return answer
             
@@ -162,3 +185,30 @@ Your responses should:
 Question: {query}
 
 Please provide a comprehensive, accurate answer with relevant legal citations."""
+
+    def _generate_openai(self, system_prompt: str, user_message: str) -> str:
+        """Generate answer using OpenAI Chat Completions API."""
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            top_p=0.95
+        )
+        return response.choices[0].message.content.strip()
+
+    def _generate_gemini(self, system_prompt: str, user_message: str) -> str:
+        """Generate answer using Gemini API."""
+        full_prompt = f"{system_prompt}\n\n{user_message}"
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=full_prompt,
+            config={
+                "temperature": self.temperature,
+                "max_output_tokens": self.max_tokens,
+            }
+        )
+        return (response.text or "").strip()

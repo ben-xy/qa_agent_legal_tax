@@ -1,7 +1,5 @@
 # Singapore Legal & Tax QA Agent
 
-CS614 Generative AI - Final Project
-
 ## Overview
 
 This QA Agent provides intelligent question-answering capabilities for Singapore legal, tax, and compliance questions. It uses Retrieval-Augmented Generation (RAG) with hybrid retrieval combining keyword search and vector similarity.
@@ -19,7 +17,7 @@ This QA Agent provides intelligent question-answering capabilities for Singapore
 ```
 qa_agent_legal_tax/
 ├── src/
-│   ├── agents/                  # QA and report agents
+│   ├── agents/                 # QA and report agents
 │   ├── services/               # LLM, embedding, and document services
 │   ├── retrievers/             # Document retrieval logic
 │   ├── validators/             # Answer and report validators
@@ -52,7 +50,7 @@ pip install -r requirements.txt
 3. Set up environment variables:
 ```bash
 cp .env.example .env
-# Edit .env with your OpenAI API key
+# Edit .env with your LLM API key
 ```
 
 ## Usage
@@ -174,10 +172,6 @@ Hybrid retrieval combines:
 - [ ] Interactive document upload
 - [ ] Web UI interface
 - [ ] API endpoints
-
-## Contributors
-
-CS614 GenAI - Singapore Management University
 
 ## License
 

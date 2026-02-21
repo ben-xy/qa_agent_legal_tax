@@ -33,11 +33,20 @@ class Config:
     
     # API Keys
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+    # Provider Configuration
+    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")  # openai | gemini
+    EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "openai")  # openai | gemini
     
     # LLM Configuration
     LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4-turbo-preview")
     LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.3"))
     LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "2000"))
+
+    # Gemini Configuration
+    GEMINI_LLM_MODEL = os.getenv("GEMINI_LLM_MODEL", "gemini-1.5-pro")
+    GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "models/text-embedding-004")
     
     # Embedding Configuration
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
