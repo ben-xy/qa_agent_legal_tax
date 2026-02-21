@@ -8,6 +8,7 @@ This QA Agent provides intelligent question-answering capabilities for Singapore
 
 - **Legal & Tax QA**: Answer questions about Singapore acts, regulations, and tax rules
 - **Hybrid Retrieval**: Combines BM25 keyword search with vector similarity
+- **Dual Model Providers**: Supports both OpenAI and Google Gemini for LLM + embeddings
 - **Citation Extraction**: Automatically extracts and references legal citations
 - **Confidence Scoring**: Provides confidence scores for answers
 - **Conversation History**: Maintains history of queries and responses
@@ -50,7 +51,20 @@ pip install -r requirements.txt
 3. Set up environment variables:
 ```bash
 cp .env.example .env
-# Edit .env with your LLM API key
+# Edit .env with your provider API key(s)
+```
+
+4. Choose provider in `.env`:
+```bash
+# Option A: OpenAI (default)
+LLM_PROVIDER=openai
+EMBEDDING_PROVIDER=openai
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Option B: Gemini
+LLM_PROVIDER=gemini
+EMBEDDING_PROVIDER=gemini
+GOOGLE_API_KEY=your_google_api_key_here
 ```
 
 ## Usage
@@ -105,10 +119,36 @@ print(f"Confidence: {response.confidence_score:.1%}")
 
 Edit `config.py` or set environment variables:
 
-- `OPENAI_API_KEY`: OpenAI API key
-- `LLM_MODEL`: Model to use (default: gpt-4-turbo-preview)
+- `LLM_PROVIDER`: `openai` or `gemini` (default: `openai`)
+- `EMBEDDING_PROVIDER`: `openai` or `gemini` (default: `openai`)
+- `OPENAI_API_KEY`: Required when using OpenAI
+- `GOOGLE_API_KEY`: Required when using Gemini
+- `LLM_MODEL`: OpenAI chat model (default: `gpt-4-turbo-preview`)
+- `GEMINI_LLM_MODEL`: Gemini chat model (default: `gemini-1.5-pro`)
+- `EMBEDDING_MODEL`: OpenAI embedding model (default: `text-embedding-3-small`)
+- `GEMINI_EMBEDDING_MODEL`: Gemini embedding model (default: `models/text-embedding-004`)
 - `RETRIEVAL_TOP_K`: Number of documents to retrieve (default: 5)
 - `LOG_LEVEL`: Logging level (DEBUG, INFO, WARNING, ERROR)
+
+### Provider Examples
+
+OpenAI setup:
+```bash
+LLM_PROVIDER=openai
+EMBEDDING_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+LLM_MODEL=gpt-4o
+EMBEDDING_MODEL=text-embedding-3-small
+```
+
+Gemini setup:
+```bash
+LLM_PROVIDER=gemini
+EMBEDDING_PROVIDER=gemini
+GOOGLE_API_KEY=AIza...
+GEMINI_LLM_MODEL=gemini-1.5-pro
+GEMINI_EMBEDDING_MODEL=models/text-embedding-004
+```
 
 ## Development
 
@@ -137,7 +177,7 @@ Singapore legal acts are chunked and stored in `data/acts_chunked/`
 
 ### 2. Embedding Generation
 
-Documents are embedded using `text-embedding-3-small` and stored in `data/acts_embedding/`
+Documents are embedded using the selected provider model (`EMBEDDING_PROVIDER`) and stored in `data/acts_embedding/`.
 
 ### 3. Retrieval
 
@@ -148,7 +188,7 @@ Hybrid retrieval combines:
 ### 4. Answer Generation
 
 - Retrieved documents provide context
-- GPT-4 generates comprehensive answers
+- The selected provider model (`LLM_PROVIDER`) generates comprehensive answers
 - Citations are extracted and formatted
 
 ## Performance
@@ -160,7 +200,7 @@ Hybrid retrieval combines:
 ## Limitations
 
 - English language only
-- Requires valid OpenAI API key
+- Requires valid API key for selected provider (`OPENAI_API_KEY` or `GOOGLE_API_KEY`)
 - Response quality depends on document quality and query clarity
 - Professional legal consultation recommended for critical decisions
 

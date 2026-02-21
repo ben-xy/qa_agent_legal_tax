@@ -1,128 +1,118 @@
-"""
-Quick Start Guide for QA Agent Legal Tax
+# Quick Start Guide - Singapore Legal & Tax QA Agent
 
-This guide will help you get the QA Agent up and running quickly.
-"""
+This guide helps you run the project quickly with either OpenAI or Google Gemini.
 
+## 1) Install Dependencies
 
-# QUICK START GUIDE - Singapore Legal & Tax QA Agent
+```bash
+pip install -r requirements.txt
+```
 
-## Step 1: Install Dependencies
- Run this once to install all required Python packages:
- pip install -r requirements.txt
-## Step 2: Configure Environment
- Create a .env file from the template:
- cp .env.example .env
- 
- Edit .env and add your OpenAI API key:
- OPENAI_API_KEY=your_actual_api_key_here
-## Step 3: Verify Installation
- Test the retriever:
- python scripts/test_system.py
-## Step 4: Run Demo
- See the agent in action:
- python scripts/demo_agent.py
-## Step 5: Start Interactive Chat
- Launch the interactive agent:
- python main.py
+## 2) Configure Environment
 
-# USAGE EXAMPLES
-## Example 1: Ask about taxes
-You: What is the GST rate in Singapore?
-Agent: Based on the relevant documents... [answer with citations]
-## Example 2: Check filing deadlines
-You: When must I file my annual report?
-Agent: According to the Companies Act... [detailed answer]
-## Example 3: View conversation history
-You: history
-Agent: Displays all previous queries in this session
-## Example 4: Exit the application
-You: quit
-Agent: Goodbye!
+```bash
+cp .env.example .env
+```
 
-# PROGRAMMATIC USAGE
+Edit `.env` and choose one provider setup.
 
-## Example: Using the agent in Python code
+### Option A: OpenAI (default)
+
+```dotenv
+LLM_PROVIDER=openai
+EMBEDDING_PROVIDER=openai
+
+OPENAI_API_KEY=your_openai_api_key_here
+LLM_MODEL=gpt-4o
+EMBEDDING_MODEL=text-embedding-3-small
+
+LLM_TEMPERATURE=0.3
+LLM_MAX_TOKENS=2000
+```
+
+### Option B: Google Gemini
+
+```dotenv
+LLM_PROVIDER=gemini
+EMBEDDING_PROVIDER=gemini
+
+GOOGLE_API_KEY=your_google_api_key_here
+GEMINI_LLM_MODEL=gemini-1.5-pro
+GEMINI_EMBEDDING_MODEL=models/text-embedding-004
+
+LLM_TEMPERATURE=0.3
+LLM_MAX_TOKENS=2000
+```
+
+## 3) Verify Setup
+
+```bash
+python scripts/test_system.py
+```
+
+## 4) Run Demo
+
+```bash
+python scripts/demo_agent.py
+```
+
+## 5) Start Interactive Chat
+
+```bash
+python main.py
+```
+
+## Usage Examples
+
+- Ask tax question: `What is the GST rate in Singapore?`
+- Ask compliance question: `When must a company file its annual return?`
+- Show history: `history`
+- Exit: `quit`
+
+## Programmatic Usage
+
+```python
 from config import get_config
 from src.agents.qa_agent import QAAgent
 from src.retrievers.hybrid_retriever import HybridRetriever
 from src.services.llm_service import LLMService
 from src.validators.legal_validator import LegalValidator
 
-## Initialize components
-config = get_config()
-config_dict = config.to_dict()
+config = get_config().to_dict()
 
-retriever = HybridRetriever(config=config_dict)
-llm = LLMService(config=config_dict)
-validator = LegalValidator(config=config_dict)
+retriever = HybridRetriever(config=config)
+llm = LLMService(config=config)
+validator = LegalValidator(config=config)
 
-## Create agent
-agent = QAAgent(retriever, llm, validator, config_dict)
-
-## Process a query
+agent = QAAgent(retriever, llm, validator, config)
 response = agent.process_query("What is the GST rate in Singapore?")
 
-print(f"Answer: {response.answer}")
-print(f"Confidence: {response.confidence_score:.1%}")
-print(f"Sources: {response.sources}")
-print(f"Citations: {response.legal_citations}")
-
-
-# CONFIGURATION OPTIONS`
- Edit config.py or set environment variables:
- LLM Configuration:
- ```
- LLM_MODEL=gpt-4-turbo-preview    # gpt-4, gpt-3.5-turbo, etc.
- LLM_TEMPERATURE=0.3              # 0-1, higher = more creative
- LLM_MAX_TOKENS=2000              # Max response length
- ```
- Retrieval Configuration:
- ```
- RETRIEVAL_TOP_K=5                # Number of documents to retrieve
- RETRIEVAL_SCORE_THRESHOLD=0.5    # Minimum relevance score
- ```
- Logging:
- ```
- LOG_LEVEL=INFO                   # DEBUG, INFO, WARNING, ERROR
- ENVIRONMENT=development          # development, production, testing
+print(response.answer)
+print(response.confidence_score)
 ```
-# TESTING
 
-## Run unit tests:
-```
+## Common Commands
+
+```bash
 pytest tests/ -v
-```
-## Run with coverage:
-```
 pytest tests/ --cov=src
-```
-## Run specific test:
-```
-pytest tests/test_agents.py::TestQAAgent::test_agent_initialization -v
+black src/
+flake8 src/
 ```
 
-# TROUBLESHOOTING
+## Troubleshooting
 
- Issue: "No documents available for retrieval"
- Solution: Ensure data/acts_chunked/ directory contains JSON files with legal documents
- Issue: "OpenAI API error"
- Solution: Check that OPENAI_API_KEY is correctly set in .env file
- Issue: "Module not found"
- Solution: Make sure you've installed dependencies: pip install -r requirements.txt
- Issue: "Connection timeout"
- Solution: Check internet connection and OpenAI API status
+- `No documents available for retrieval`
+	- Ensure `data/acts_chunked/` contains chunked JSON files.
+- `OPENAI_API_KEY` or `GOOGLE_API_KEY` error
+	- Confirm the selected provider and matching key are correctly set in `.env`.
+- `Module not found`
+	- Reinstall dependencies: `pip install -r requirements.txt`.
 
-# NEXT STEPS
-1. Customize prompts in src/prompts.py for your use case
-2. Add more data by placing documents in data/acts_chunked/
-3. Extend validators in src/validators/legal_validator.py
-4. Add more test cases in tests/
-5. Deploy using main.py as entry point
+## Resources
 
-# RESOURCES
-Documentation: See README.md
-Implementation Details: See IMPLEMENTATION_SUMMARY.md
-Code Examples: See scripts/demo_agent.py
-Tests: See tests/test_agents.py
+- Main documentation: `README.md`
+- Implementation notes: `IMPLEMENTATION_SUMMARY.md`
+- Demo script: `scripts/demo_agent.py`
+- Test suite: `tests/test_agents.py`
 
