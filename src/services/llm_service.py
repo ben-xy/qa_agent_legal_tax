@@ -3,6 +3,7 @@ LLM service for answer generation using OpenAI GPT API.
 """
 
 import logging
+import time
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,51 @@ class LLMService:
     def _config_get(self, key: str, default: Any = None) -> Any:
         """Get config value with lowercase + uppercase compatibility."""
         return self.config.get(key, self.config.get(key.upper(), default))
+
+    def _is_retriable_error(self, exc: Exception) -> bool:
+        """Return True for transient network/provider errors worth retrying."""
+        error_text = str(exc).lower()
+        retriable_markers = [
+            "connecterror",
+            "connection error",
+            "timed out",
+            "timeout",
+            "temporary failure",
+            "service unavailable",
+            "eof occurred in violation of protocol",
+            "ssl",
+        ]
+        return any(marker in error_text for marker in retriable_markers)
+
+    def _run_with_retry(self, fn, operation_name: str) -> str:
+        """Run provider call with retry for transient failures."""
+        max_attempts = int(self._config_get("network_retry_attempts", 3))
+        base_delay = float(self._config_get("network_retry_delay", 1.0))
+
+        last_exc = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return fn()
+            except Exception as exc:
+                last_exc = exc
+                should_retry = self._is_retriable_error(exc) and attempt < max_attempts
+                if not should_retry:
+                    raise
+
+                delay = base_delay * attempt
+                logger.warning(
+                    "%s failed on attempt %s/%s: %s. Retrying in %.1fs...",
+                    operation_name,
+                    attempt,
+                    max_attempts,
+                    exc,
+                    delay,
+                )
+                time.sleep(delay)
+
+        if last_exc:
+            raise last_exc
+        raise RuntimeError(f"{operation_name} failed unexpectedly")
 
     def _init_client(self) -> None:
         """Initialize provider-specific LLM client."""
@@ -99,9 +145,15 @@ class LLMService:
             logger.debug(f"User prompt length: {len(user_message)} chars")
 
             if self.provider == 'openai':
-                answer = self._generate_openai(system_prompt, user_message)
+                answer = self._run_with_retry(
+                    lambda: self._generate_openai(system_prompt, user_message),
+                    "OpenAI answer generation"
+                )
             else:
-                answer = self._generate_gemini(system_prompt, user_message)
+                answer = self._run_with_retry(
+                    lambda: self._generate_gemini(system_prompt, user_message),
+                    "Gemini answer generation"
+                )
 
             logger.info(f"Generated answer using provider={self.provider}, model={self.model}")
             

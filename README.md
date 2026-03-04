@@ -59,6 +59,7 @@ qa_agent_legal_tax/
 │   ├── acts_embedding/         # Vector embeddings
 │   └── qa_pairs/               # Generated QA pairs
 ├── scripts/                    # Utility scripts
+├── notebooks/                  # Notebook-based Web UI
 ├── tests/                      # Unit tests
 ├── config.py                   # Configuration management
 ├── main.py                     # Entry point
@@ -127,6 +128,26 @@ Agent: <Show conversation history>
 
 You: quit
 ```
+
+### Web UI (Jupyter Notebook)
+
+Run the notebook-based web interface (built on top of the same `QAAgent` pipeline):
+
+```bash
+jupyter notebook notebooks/web_ui.ipynb
+```
+
+Then:
+
+1. Run all notebook cells in order
+2. Open the local Gradio URL shown in output (usually `http://127.0.0.1:7860`)
+3. Ask questions in the browser UI
+
+This UI supports:
+- Chat-style interaction
+- Confidence / processing-time display
+- Source and legal citation display
+- Clearing conversation history
 
 ### Programmatic Usage
 
@@ -234,7 +255,7 @@ Hybrid retrieval combines:
 - [ ] Fine-tuned models for legal domain
 - [ ] Financial report generation
 - [ ] Interactive document upload
-- [ ] Web UI interface
+- [x] Web UI interface (notebook + Gradio)
 - [ ] API endpoints
 
 ## License
