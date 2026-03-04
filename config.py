@@ -12,6 +12,17 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+def as_bool(value, default: bool = False) -> bool:
+    """
+    Convert common bool-like values safely.
+    Accepts: 1/true/yes/y/on (case-insensitive).
+    """
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
 
 class Config:
     """Base configuration class."""
@@ -60,10 +71,10 @@ class Config:
     BM25_B = 0.75
 
     # Rerank Configuration
-    ENABLE_RERANK = os.getenv("ENABLE_RERANK", "true").strip().lower() in ("1", "true", "yes", "y", "on")
+    ENABLE_RERANK = as_bool(os.getenv("ENABLE_RERANK", "true"))
     RERANK_CANDIDATE_K = int(os.getenv("RERANK_CANDIDATE_K", "20"))
     COHERE_RERANK_MODEL = os.getenv("COHERE_RERANK_MODEL", "rerank-english-v3.0")
-    RERANK_DEBUG_LOG = os.getenv("RERANK_DEBUG_LOG", "false").strip().lower() in ("1", "true", "yes", "y", "on")
+    RERANK_DEBUG_LOG = as_bool(os.getenv("RERANK_DEBUG_LOG", "false"))
 
     # Vector Store Configuration
     VECTOR_STORE_TYPE = os.getenv("VECTOR_STORE_TYPE", "faiss")
