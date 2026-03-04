@@ -251,7 +251,7 @@ Hybrid retrieval combines:
 
 ## Future Enhancements
 
-- [ ] Multi-language support
+- [x] Multi-language support
 - [ ] Fine-tuned models for legal domain
 - [ ] Financial report generation
 - [ ] Interactive document upload

@@ -34,18 +34,19 @@ class Config:
     # API Keys
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+    COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 
     # Provider Configuration
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")  # openai | gemini
     EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "gemini")  # openai | gemini
     
     # LLM Configuration
-    LLM_MODEL = os.getenv("LLM_MODEL", "gemini-2.5-pro")
+    LLM_MODEL = os.getenv("LLM_MODEL", "gemini-2.5-flash")
     LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.3"))
     LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "2000"))
 
     # Gemini Configuration
-    GEMINI_LLM_MODEL = os.getenv("GEMINI_LLM_MODEL", "gemini-2.5-pro")
+    GEMINI_LLM_MODEL = os.getenv("GEMINI_LLM_MODEL", "gemini-2.5-flash")
     GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "models/text-embedding-004")
     
     # Embedding Configuration
@@ -57,7 +58,13 @@ class Config:
     RETRIEVAL_SCORE_THRESHOLD = float(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "0.5"))
     BM25_K1 = 1.5
     BM25_B = 0.75
-    
+
+    # Rerank Configuration
+    ENABLE_RERANK = os.getenv("ENABLE_RERANK", "true").strip().lower() in ("1", "true", "yes", "y", "on")
+    RERANK_CANDIDATE_K = int(os.getenv("RERANK_CANDIDATE_K", "20"))
+    COHERE_RERANK_MODEL = os.getenv("COHERE_RERANK_MODEL", "rerank-english-v3.0")
+    RERANK_DEBUG_LOG = os.getenv("RERANK_DEBUG_LOG", "false").strip().lower() in ("1", "true", "yes", "y", "on")
+
     # Vector Store Configuration
     VECTOR_STORE_TYPE = os.getenv("VECTOR_STORE_TYPE", "faiss")
     VECTOR_STORE_PATH = DATA_DIR / "acts_embedding" / EMBEDDING_MODEL
@@ -110,9 +117,11 @@ class ProductionConfig(Config):
 class TestingConfig(Config):
     """Testing environment configuration."""
     TESTING = True
-    LLM_MODEL = "gpt-3.5-turbo"
+    LLM_MODEL = "gemini-2.5-flash"
     RETRIEVAL_TOP_K = 3
     LOG_LEVEL = "WARNING"
+    ENABLE_RERANK = False  # Disable external API dependency in tests
+    RERANK_DEBUG_LOG = False
 
 
 def get_config(env: str = None) -> Config:
