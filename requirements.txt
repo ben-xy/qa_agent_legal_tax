@@ -11,6 +11,8 @@ google-genai>=1.28.0
 pandas==2.0.3
 numpy==1.24.3
 python-dateutil==2.8.2
+ranx>=0.3.20
+rouge-score>=0.1.2
 rank-bm25>=0.2.2
 cohere>=5.11.0
 
