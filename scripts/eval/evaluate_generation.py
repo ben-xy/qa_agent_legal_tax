@@ -1,6 +1,7 @@
 import argparse
 import json
 import re
+import os
 from pathlib import Path
 from statistics import mean
 from typing import Dict, List
@@ -51,13 +52,22 @@ def f1(pred: str, gold: str) -> float:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--gt", required=True, help="Ground truth JSONL")
-    parser.add_argument("--pred", required=True, help="Prediction JSONL")
-    parser.add_argument("--out", required=True, help="Output metrics JSON")
+    parser.add_argument("--gt", default=os.getenv("EVAL_GT"))
+    parser.add_argument("--pred", default=os.getenv("EVAL_PRED"))
+    parser.add_argument("--out", default=os.getenv("EVAL_OUT"))
     args = parser.parse_args()
 
-    gt_rows = read_jsonl(Path(args.gt))
-    pred_rows = read_jsonl(Path(args.pred))
+    if not args.gt or not args.pred or not args.out:
+        parser.error("the following arguments are required: --gt, --pred, --out")
+
+    ROOT = Path(__file__).resolve().parents[2]
+
+    def resolve_path(p: str) -> Path:
+        path = Path(p)
+        return path if path.is_absolute() else (ROOT / path)
+
+    gt_rows = read_jsonl(resolve_path(args.gt))
+    pred_rows = read_jsonl(resolve_path(args.pred))
     pred_map = {r["id"]: r for r in pred_rows}
 
     scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
@@ -79,7 +89,7 @@ def main():
         "rougeL_f1": mean(rouge_list) if rouge_list else 0.0,
     }
 
-    out_path = Path(args.out)
+    out_path = resolve_path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))

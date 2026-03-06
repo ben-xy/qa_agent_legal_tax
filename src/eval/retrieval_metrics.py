@@ -7,6 +7,13 @@ from typing import Dict, List
 from rank_bm25 import BM25Okapi
 from ranx import Qrels, Run, evaluate
 
+ROOT = Path(__file__).resolve().parents[2]  # repo root
+
+
+def resolve_path(p: str) -> Path:
+    path = Path(p)
+    return path if path.is_absolute() else (ROOT / path)
+
 
 def read_jsonl(path: Path) -> List[Dict]:
     rows = []
@@ -23,11 +30,13 @@ def tokenize(text: str) -> List[str]:
 
 
 def load_chunks(chunk_dir: Path) -> List[Dict]:
-    docs = []
+    docs: List[Dict] = []
     for fp in sorted(chunk_dir.glob("*.json")):
-        arr = json.loads(fp.read_text(encoding="utf-8"))
-        if isinstance(arr, list):
-            docs.extend(arr)
+        obj = json.loads(fp.read_text(encoding="utf-8"))
+        if isinstance(obj, list):
+            docs.extend(obj)
+        elif isinstance(obj, dict) and isinstance(obj.get("chunks"), list):
+            docs.extend(obj["chunks"])
     return docs
 
 
@@ -39,30 +48,33 @@ def main():
     parser.add_argument("--out", required=True, help="Output metrics JSON")
     args = parser.parse_args()
 
-    gt_rows = read_jsonl(Path(args.gt))
-    chunks = load_chunks(Path(args.chunk_dir))
+    gt_rows = read_jsonl(resolve_path(args.gt))
+    chunks = load_chunks(resolve_path(args.chunk_dir))
     if not chunks:
         raise RuntimeError(f"No chunks found in: {args.chunk_dir}")
 
-    doc_ids = [c.get("chunk_id", f"doc_{i}") for i, c in enumerate(chunks)]
+    doc_ids = [
+        str(c.get("chunk_id") or c.get("id") or f"doc_{i}")
+        for i, c in enumerate(chunks)
+    ]
     corpus = [tokenize(c.get("content", "")) for c in chunks]
     bm25 = BM25Okapi(corpus)
 
     qrels_dict = {}
     run_dict = {}
-
     used = 0
+
     for row in gt_rows:
         qid = row["id"]
         q = row.get("question", "")
-        rel_ids = row.get("gold_chunk_ids", [])  # preferred for chunk eval
+        rel_ids = row.get("gold_chunk_ids", [])
         if not rel_ids:
             continue
 
         scores = bm25.get_scores(tokenize(q))
         rank_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[: max(args.k, 50)]
 
-        qrels_dict[qid] = {rid: 1 for rid in rel_ids}
+        qrels_dict[qid] = {str(rid): 1 for rid in rel_ids}
         run_dict[qid] = {doc_ids[i]: float(scores[i]) for i in rank_idx}
         used += 1
 
@@ -78,12 +90,8 @@ def main():
         metrics=[f"recall@{args.k}", f"precision@{args.k}", f"ndcg@{args.k}", f"mrr@{args.k}", f"map@{args.k}"],
     )
 
-    out = {
-        "num_questions_used": used,
-        "k": args.k,
-        "metrics": metrics,
-    }
-    out_path = Path(args.out)
+    out = {"num_questions_used": used, "k": args.k, "metrics": metrics}
+    out_path = resolve_path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(out, ensure_ascii=False, indent=2))
