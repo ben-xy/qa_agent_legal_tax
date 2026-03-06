@@ -11,7 +11,7 @@ User Query
     ↓
 Query Classification (tax/financial/compliance/general)
     ↓
-Document Retrieval (Hybrid: BM25 + Vector Search)
+Document Retrieval (Hybrid: BM25 + Vector Search + Rerank)
     ↓
 Context Formatting
     ↓
@@ -67,24 +67,29 @@ qa_agent_legal_tax/
 ```
 
 ## Installation & Quick Start
+
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd qa_agent_legal_tax
 ```
 
 2. Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
 3. Set up environment variables:
+
 ```bash
 cp .env.example .env
 # Edit .env with your provider API key(s)
 ```
 
 4. Choose provider in `.env`:
+
 ```bash
 # Option A: OpenAI
 LLM_PROVIDER=openai
@@ -144,6 +149,7 @@ Then:
 3. Ask questions in the browser UI
 
 This UI supports:
+
 - Chat-style interaction
 - Confidence / processing-time display
 - Source and legal citation display
@@ -228,6 +234,7 @@ Documents are embedded using the selected provider model (`EMBEDDING_PROVIDER`) 
 ### 3. Retrieval
 
 Hybrid retrieval combines:
+
 - **BM25**: Keyword-based ranking
 - **Vector Search**: Semantic similarity
 
@@ -251,11 +258,12 @@ Hybrid retrieval combines:
 
 ## Future Enhancements
 
-- [ ] Multi-language support
+- [X] Multi-language support
+- [X] Rerank
 - [ ] Fine-tuned models for legal domain
 - [ ] Financial report generation
 - [ ] Interactive document upload
-- [x] Web UI interface (notebook + Gradio)
+- [X] Web UI interface (notebook + Gradio)
 - [ ] API endpoints
 
 ## License

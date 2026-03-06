@@ -3,12 +3,12 @@ Hybrid retriever combining BM25 keyword search and vector similarity search.
 """
 
 import logging
-from typing import List, Dict, Optional
-from abc import ABC, abstractmethod
+from typing import List, Dict
 from pathlib import Path
 import re
 import json
 import numpy as np
+import difflib
 
 try:
     from rank_bm25 import BM25Okapi
@@ -17,9 +17,10 @@ except Exception:
     _HAS_BM25 = False
 
 from src.services.embedding_service import EmbeddingService
+from src.retrievers.cohere_reranker import CohereReranker
+from config import as_bool
 
 logger = logging.getLogger(__name__)
-
 
 class HybridRetriever:
     """
@@ -29,8 +30,14 @@ class HybridRetriever:
     def __init__(self, config: Dict):
         """Initialize hybrid retriever with configuration."""
         self.config = config
+        self.enable_rerank = as_bool(self.config.get("ENABLE_RERANK", True), True)
+        self.rerank_candidate_k = int(self.config.get("RERANK_CANDIDATE_K", 20))
+        self.reranker = CohereReranker(
+            api_key=self.config.get("COHERE_API_KEY"),
+            model=self.config.get("COHERE_RERANK_MODEL", "rerank-english-v3.0"),
+        )
+        self.rerank_debug_log = as_bool(self.config.get("RERANK_DEBUG_LOG", False), False)
         self.documents = self._load_documents()
-
         self._bm25 = None
         self._bm25_corpus = None
         self._embedding_service = None
@@ -67,50 +74,125 @@ class HybridRetriever:
         logger.info(f"Loaded {len(documents)} document chunks")
         return documents
     
+    def _short_text(self, text: str, limit: int = 220) -> str:
+        text = (text or "").replace("\n", " ").strip()
+        return text if len(text) <= limit else text[:limit] + "..."
+
+    def _doc_signature(self, doc: Dict) -> str:
+        # Stable-enough signature for ranking comparison logs
+        text = self._get_doc_text(doc) if hasattr(self, "_get_doc_text") else (
+            doc.get("content") or doc.get("text") or doc.get("chunk") or str(doc)
+        )
+        return self._short_text(text, 120)
+
+    def _highlight_diff(self, before: str, after: str) -> tuple[str, str]:
+        """
+        Highlight token-level differences:
+        - removed tokens in before: [-token-]
+        - added tokens in after: {+token+}
+        """
+        b_tokens = before.split()
+        a_tokens = after.split()
+        sm = difflib.SequenceMatcher(a=b_tokens, b=a_tokens)
+
+        b_out, a_out = [], []
+        for tag, i1, i2, j1, j2 in sm.get_opcodes():
+            b_seg = b_tokens[i1:i2]
+            a_seg = a_tokens[j1:j2]
+
+            if tag == "equal":
+                b_out.extend(b_seg)
+                a_out.extend(a_seg)
+            elif tag == "replace":
+                b_out.extend([f"[-{t}-]" for t in b_seg])
+                a_out.extend([f"{{+{t}+}}" for t in a_seg])
+            elif tag == "delete":
+                b_out.extend([f"[-{t}-]" for t in b_seg])
+            elif tag == "insert":
+                a_out.extend([f"{{+{t}+}}" for t in a_seg])
+
+        return " ".join(b_out), " ".join(a_out)
+
+    def _log_rerank_comparison(self, query: str, before_docs: List[Dict], after_docs: List[Dict], top_n: int = 5) -> None:
+        n = min(top_n, len(before_docs), len(after_docs))
+        if n == 0:
+            return
+
+        logger.info("=== RERANK DEBUG START ===")
+        logger.info("Query: %s", query)
+
+        # Rank movement summary
+        before_rank = {self._doc_signature(d): i + 1 for i, d in enumerate(before_docs)}
+        after_rank = {self._doc_signature(d): i + 1 for i, d in enumerate(after_docs)}
+        moved = []
+        for sig, b_rank in before_rank.items():
+            if sig in after_rank:
+                a_rank = after_rank[sig]
+                if a_rank != b_rank:
+                    moved.append((sig, b_rank, a_rank))
+        for sig, b_rank, a_rank in moved[:10]:
+            logger.info("Rank change: %d -> %d | %s", b_rank, a_rank, sig)
+
+        logger.info("--- Top-%d BEFORE rerank ---", n)
+        for i in range(n):
+            d = before_docs[i]
+            score = d.get("retrieval_score", d.get("score", None))
+            logger.info("#%d score=%s | %s", i + 1, score, self._doc_signature(d))
+
+        logger.info("--- Top-%d AFTER rerank ---", n)
+        for i in range(n):
+            d = after_docs[i]
+            rscore = d.get("rerank_score", d.get("retrieval_score", d.get("score", None)))
+            logger.info("#%d rerank_score=%s | %s", i + 1, rscore, self._doc_signature(d))
+
+        logger.info("--- Highlighted differences by rank position ---")
+        for i in range(n):
+            b_text = self._doc_signature(before_docs[i])
+            a_text = self._doc_signature(after_docs[i])
+            hb, ha = self._highlight_diff(b_text, a_text)
+            logger.info("Rank #%d BEFORE: %s", i + 1, hb)
+            logger.info("Rank #%d AFTER : %s", i + 1, ha)
+
+        logger.info("=== RERANK DEBUG END ===")
+
     def retrieve(self, query: str, 
                 top_k: int = 5,
                 query_type: str = 'general') -> List[Dict]:
         """
-        Retrieve documents using hybrid approach.
+        Retrieve documents using stage-1 hybrid retrieval, then optional reranking.
         """
+        logger.info(
+            "retrieve() enter | docs=%d | enable_rerank=%s | has_bm25=%s",
+            len(self.documents),
+            self.enable_rerank,
+            _HAS_BM25,
+        )
+
         if not self.documents:
             return []
-        
-        use_bm25 = self.config.get("use_bm25", True) and _HAS_BM25 and self._bm25 is not None
-        use_vector = self.config.get("use_vector", True)
 
-        if not use_bm25 and not use_vector:
-            return self._keyword_search(query, top_k)
+        # Always retrieve a wider candidate pool first.
+        candidate_k = max(top_k, self.rerank_candidate_k)
+        candidates = self._hybrid_retrieve(query=query, top_k=candidate_k, query_type=query_type)
 
-        bm25_scores = None
-        if use_bm25:
-            bm25_scores = self._bm25.get_scores(self._tokenize(query))
+        if self.enable_rerank:
+            logger.info("Reranking top %d candidates with Cohere reranker", len(candidates))
+            before_top = candidates[:top_k]
+            reranked = self.reranker.rerank(query=query, candidates=candidates, top_n=top_k)
 
-        vec_scores = None
-        if use_vector:
-            try:
-                vec_scores = self._vector_scores(query)
-            except Exception as e:
-                logger.warning(f"Vector search failed, fallback to BM25/keyword: {e}")
-                vec_scores = None
+            if self.rerank_debug_log:
+                self._log_rerank_comparison(
+                    query=query,
+                    before_docs=before_top,
+                    after_docs=reranked,
+                    top_n=min(5, top_k),
+                )
 
-        if bm25_scores is None and vec_scores is None:
-            return self._keyword_search(query, top_k)
-        if bm25_scores is None:
-            return self._topk_by_scores(vec_scores, top_k)
-        if vec_scores is None:
-            return self._topk_by_scores(bm25_scores, top_k)
+            return reranked
 
-        bm25_norm = self._minmax_norm(bm25_scores)
-        vec_norm = self._minmax_norm(vec_scores)
-        alpha = float(self.config.get("hybrid_alpha", 0.5))
+        logger.info("Rerank disabled. Returning top %d stage-1 candidates", top_k)
+        return candidates[:top_k]
 
-        hybrid_scores = alpha * bm25_norm + (1.0 - alpha) * vec_norm
-        results = self._topk_by_scores(hybrid_scores, top_k)
-
-        logger.info(f"Retrieved {len(results)} documents for query (hybrid)")
-        return results
-    
     def _tokenize(self, text: str) -> List[str]:
         return re.findall(r"\w+", text.lower())
     
@@ -166,7 +248,13 @@ class HybridRetriever:
     
     def _topk_by_scores(self, scores: np.ndarray, top_k: int) -> List[Dict]:
         idx = np.argsort(scores)[::-1][:top_k]
-        return [self.documents[i] for i in idx]
+        out = []
+        for rank, i in enumerate(idx, start=1):
+            doc = dict(self.documents[i])
+            doc["retrieval_score"] = float(scores[i])
+            doc["retrieval_rank"] = rank
+            out.append(doc)
+        return out
 
     def _keyword_search(self, query: str, top_k: int) -> List[Dict]:
         """Simple keyword-based search."""
@@ -188,3 +276,43 @@ class HybridRetriever:
         # Sort by score and return top-k
         results.sort(key=lambda x: x['score'], reverse=True)
         return results[:top_k]
+
+    def _hybrid_retrieve(self, query: str, top_k: int, **kwargs) -> List[Dict]:
+        """Retrieve documents using hybrid approach."""
+        if not self.documents:
+            return []
+        
+        use_bm25 = self.config.get("use_bm25", True) and _HAS_BM25 and self._bm25 is not None
+        use_vector = self.config.get("use_vector", True)
+
+        if not use_bm25 and not use_vector:
+            return self._keyword_search(query, top_k)
+
+        bm25_scores = None
+        if use_bm25:
+            bm25_scores = self._bm25.get_scores(self._tokenize(query))
+
+        vec_scores = None
+        if use_vector:
+            try:
+                vec_scores = self._vector_scores(query)
+            except Exception as e:
+                logger.warning(f"Vector search failed, fallback to BM25/keyword: {e}")
+                vec_scores = None
+
+        if bm25_scores is None and vec_scores is None:
+            return self._keyword_search(query, top_k)
+        if bm25_scores is None:
+            return self._topk_by_scores(vec_scores, top_k)
+        if vec_scores is None:
+            return self._topk_by_scores(bm25_scores, top_k)
+
+        bm25_norm = self._minmax_norm(bm25_scores)
+        vec_norm = self._minmax_norm(vec_scores)
+        alpha = float(self.config.get("hybrid_alpha", 0.5))
+
+        hybrid_scores = alpha * bm25_norm + (1.0 - alpha) * vec_norm
+        candidates = self._topk_by_scores(hybrid_scores, top_k)
+
+        logger.info(f"Retrieved {len(candidates)} documents for query (hybrid)")
+        return candidates
