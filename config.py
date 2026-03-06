@@ -92,7 +92,7 @@ class Config:
     LOG_FORMAT = "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s"
     LOG_FILE = LOGS_DIR / "qa_agent.log"
     
-    # Data paths
+    # Data Paths
     ACTS_CSV = DATA_DIR / "acts.csv"
     ACTS_CHUNKED_DIR = DATA_DIR / "acts_chunked"
     ACTS_HTML_DIR = DATA_DIR / "acts_html"
@@ -101,6 +101,11 @@ class Config:
     FINANCIAL_TEMPLATES_DIR = DATA_DIR / "financial_templates"
     REGULATIONS_DIR = DATA_DIR / "regulations"
     
+    # Knowledge Graph (optional)
+    ENABLE_KG = as_bool(os.getenv("ENABLE_KG", "false"))
+    KG_BOOST_WEIGHT = float(os.getenv("KG_BOOST_WEIGHT", "0.2"))
+    KG_MAX_EXPANSION = int(os.getenv("KG_MAX_EXPANSION", "50"))
+
     @classmethod
     def to_dict(cls) -> Dict[str, Any]:
         """Convert config to dictionary."""
@@ -131,8 +136,10 @@ class TestingConfig(Config):
     LLM_MODEL = "gemini-2.5-flash"
     RETRIEVAL_TOP_K = 3
     LOG_LEVEL = "WARNING"
-    ENABLE_RERANK = False  # Disable external API dependency in tests
+    # Disable in tests
+    ENABLE_RERANK = False  
     RERANK_DEBUG_LOG = False
+    ENABLE_KG = False
 
 
 def get_config(env: str = None) -> Config:
