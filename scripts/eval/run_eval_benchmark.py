@@ -1,6 +1,8 @@
 import os
 import sys
 import json
+import inspect
+import importlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
@@ -33,24 +35,176 @@ def write_jsonl(path: Path, rows: List[Dict[str, Any]]) -> None:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
 
+def _try_make(module_name: str, attr_name: str, cfg, cfg_dict):
+    try:
+        mod = importlib.import_module(module_name)
+        obj = getattr(mod, attr_name)
+        # class or factory
+        if inspect.isclass(obj):
+            for arg in (cfg_dict, cfg):
+                try:
+                    return obj(arg)
+                except TypeError:
+                    pass
+            return obj()
+        else:
+            for arg in (cfg_dict, cfg):
+                try:
+                    return obj(arg)
+                except TypeError:
+                    pass
+            return obj()
+    except Exception:
+        return None
+
+
 def build_agent():
     from config import get_config
     from src.agents.qa_agent import QAAgent
 
     cfg = get_config()
     cfg_dict = cfg.to_dict() if hasattr(cfg, "to_dict") else cfg
-    return QAAgent(cfg_dict)
+
+    print(f"[debug] QAAgent.__init__ signature: {inspect.signature(QAAgent.__init__)}")
+    if isinstance(cfg_dict, dict):
+        print(f"[debug] cfg_dict keys ({len(cfg_dict)}): {sorted(cfg_dict.keys())}")
+    else:
+        print(f"[debug] cfg_dict is not dict, type={type(cfg_dict).__name__}")
+
+    retriever = (
+        _try_make("src.retrievers.hybrid_retriever", "HybridRetriever", cfg, cfg_dict)
+    )
+
+    llm_service = (
+        _try_make("src.services.llm_service", "LLMService", cfg, cfg_dict)
+        or _try_make("src.llm.llm_service", "LLMService", cfg, cfg_dict)
+        or _try_make("src.services.llm_service", "build_llm_service", cfg, cfg_dict)
+    )
+
+    validator = (
+        _try_make("src.validators.legal_validator", "LegalValidator", cfg, cfg_dict)
+    )
+
+    if not (retriever and llm_service and validator):
+        raise RuntimeError(
+            f"Dependency build failed: retriever={type(retriever).__name__ if retriever else None}, "
+            f"llm_service={type(llm_service).__name__ if llm_service else None}, "
+            f"validator={type(validator).__name__ if validator else None}. "
+            "Use rg result to replace module/class names with your real ones."
+        )
+
+    return QAAgent(
+        retriever=retriever,
+        llm_service=llm_service,
+        validator=validator,
+        config=cfg_dict,
+    )
+
+
+def _invoke_callable(fn, question: str, **extra_kwargs):
+    """
+    Call fn with best-effort signature matching.
+    """
+    sig = inspect.signature(fn)
+    params = sig.parameters
+
+    # Prefer named semantic args
+    for key in ("query", "question", "text", "prompt", "input"):
+        if key in params:
+            kwargs = {key: question}
+            for k, v in extra_kwargs.items():
+                if k in params:
+                    kwargs[k] = v
+            return fn(**kwargs)
+
+    # Fallback: first positional argument
+    kwargs = {k: v for k, v in extra_kwargs.items() if k in params}
+    return fn(question, **kwargs)
+
+
+def _manual_agent_fallback(agent: Any, question: str) -> Dict[str, Any]:
+    """
+    Fallback pipeline based on provided components:
+    retriever -> llm_service -> validator
+    """
+    retriever = getattr(agent, "retriever", None)
+    llm_service = getattr(agent, "llm_service", None)
+    validator = getattr(agent, "validator", None)
+    config = getattr(agent, "config", {}) or {}
+
+    if not retriever or not llm_service:
+        raise RuntimeError("Agent fallback failed: missing retriever or llm_service.")
+
+    top_k = int(config.get("RETRIEVAL_TOP_K", config.get("retrieval_top_k", 5)))
+    query_type = "general"
+
+    # retrieve
+    try:
+        contexts = retriever.retrieve(query=question, top_k=top_k, query_type=query_type)
+    except TypeError:
+        try:
+            contexts = retriever.retrieve(question, top_k=top_k, query_type=query_type)
+        except TypeError:
+            contexts = retriever.retrieve(question)
+
+    # generate
+    answer = llm_service.generate_answer(
+        query=question,
+        context=contexts,
+        company_info=None,
+        query_type=query_type,
+    )
+
+    # validate + citations
+    validation = None
+    citations: List[str] = []
+    if validator:
+        if hasattr(validator, "validate_answer"):
+            validation = validator.validate_answer(answer=answer, context=contexts, query=question)
+        if hasattr(validator, "extract_citations"):
+            citations = validator.extract_citations(answer) or []
+
+    return {
+        "answer": answer,
+        "documents": contexts,
+        "citations": citations,
+        "validation": validation,
+    }
 
 
 def call_agent(agent: Any, question: str) -> Any:
     """
-    Fallback for different agent APIs in projects.
+    Robust call order:
+    1) Try common QAAgent methods
+    2) Fallback to manual component pipeline
     """
-    for method_name in ["answer_question", "ask", "query", "run", "__call__"]:
-        if hasattr(agent, method_name):
-            method = getattr(agent, method_name)
-            return method(question)
-    raise RuntimeError("No supported QAAgent method found (answer_question/ask/query/run/__call__).")
+    candidate_methods = [
+        "answer_question",
+        "answer",
+        "ask",
+        "query",
+        "run",
+        "invoke",
+        "chat",
+        "generate",
+        "process_query",
+    ]
+
+    for method_name in candidate_methods:
+        method = getattr(agent, method_name, None)
+        if callable(method):
+            try:
+                return _invoke_callable(method, question)
+            except TypeError:
+                continue
+
+    if callable(agent):
+        try:
+            return _invoke_callable(agent, question)
+        except TypeError:
+            pass
+
+    return _manual_agent_fallback(agent, question)
 
 
 def normalize_response(resp: Any) -> Dict[str, Any]:
@@ -154,10 +308,22 @@ def _write_run_snapshot(args, pred_out_path: Path) -> Path:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--gt", required=True, help="Path to ground truth jsonl")
-    parser.add_argument("--out", required=True, help="Path to output predictions jsonl")
-    parser.add_argument("--enable-rerank", choices=["true", "false"], required=True)
-    # Optional args for snapshot metadata (will fallback to env vars or defaults)
+    # default paths, will be replaced with actual ones in eval script calls
+    parser.add_argument(
+        "--gt",
+        default="data/qa_pairs/eval_ground_truth.jsonl",
+        help="Path to ground truth jsonl",
+    )
+    parser.add_argument(
+        "--out",
+        default="outputs/preds_hybrid.jsonl",
+        help="Path to output predictions jsonl",
+    )
+    parser.add_argument(
+        "--enable-rerank",
+        choices=["true", "false"],
+        default="false",
+    )
     parser.add_argument("--top-k", type=int, default=5, help="Top-K docs used for answering/eval snapshot")
     parser.add_argument("--model", type=str, default=None, help="LLM model name for snapshot only")
     parser.add_argument("--rerank-model", type=str, default=None, help="Rerank model name for snapshot only")
@@ -189,8 +355,8 @@ def main():
 
     write_jsonl(out_path, preds)
     print(f"Saved predictions: {out_path} (n={len(preds)})")
-
     _write_run_snapshot(args, out_path)
+
 
 if __name__ == "__main__":
     main()
