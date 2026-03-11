@@ -109,8 +109,8 @@ def run(strategy: str, src_dir: Path, out_dir: Path) -> None:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--src-dir", default=str(ROOT / "data" / "acts_md"))
-    parser.add_argument("--out-fixed", default=str(ROOT / "data" / "acts_chunked_fixed"))
-    parser.add_argument("--out-struct", default=str(ROOT / "data" / "acts_chunked_struct"))
+    parser.add_argument("--out-fixed", default=str(ROOT / "data" / "tmp" / "acts_chunked_fixed"))
+    parser.add_argument("--out-struct", default=str(ROOT / "data" / "tmp" / "acts_chunked_struct"))
     args = parser.parse_args()
 
     src_dir = resolve_path(args.src_dir)
