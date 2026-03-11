@@ -1,0 +1,84 @@
+[
+  {
+    "id": "q001",
+    "question": "What is the short title of the Customs Act?",
+    "answer": "The short title is the Customs Act 1960.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online > PART 1 PRELIMINARY > Short title"
+    ]
+  },
+  {
+    "id": "q002",
+    "question": "What is the purpose of customs duty under the Customs Act?",
+    "answer": "Customs duty is imposed on dutiable goods according to the Act and relevant schedules.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online > Levying of duty provisions"
+    ]
+  },
+  {
+    "id": "q003",
+    "question": "What is one key function of the Director-General of Customs?",
+    "answer": "A key function is administering and enforcing customs laws, including supervision of import and export controls.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online > Administration and enforcement sections"
+    ]
+  },
+  {
+    "id": "q004",
+    "question": "What is the full name of the CPF law in Singapore?",
+    "answer": "It is the Central Provident Fund Act 1953.",
+    "references": [
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > Title"
+    ]
+  },
+  {
+    "id": "q005",
+    "question": "What is the main objective of the Central Provident Fund scheme?",
+    "answer": "The scheme provides mandatory savings for retirement and certain housing and healthcare needs.",
+    "references": [
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > General framework"
+    ]
+  },
+  {
+    "id": "q006",
+    "question": "Who is generally required to make CPF contributions?",
+    "answer": "Employers and eligible employees are generally required to make CPF contributions in accordance with the Act.",
+    "references": [
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > Contributions provisions"
+    ]
+  },
+  {
+    "id": "q007",
+    "question": "What is CareShield Life designed to provide?",
+    "answer": "CareShield Life provides long-term care insurance payouts for severe disability.",
+    "references": [
+      "CareShield Life and Long-Term Care Act 2019 - Singapore Statutes Online > Scheme purpose"
+    ]
+  },
+  {
+    "id": "q008",
+    "question": "Under the CareShield Life framework, when do payouts typically begin?",
+    "answer": "Payouts typically begin when the insured person meets the severe disability criteria defined under the scheme.",
+    "references": [
+      "CareShield Life and Long-Term Care Act 2019 - Singapore Statutes Online > Eligibility and payout conditions"
+    ]
+  },
+  {
+    "id": "q009",
+    "question": "Name one consequence of non-compliance with customs requirements.",
+    "answer": "Non-compliance may result in penalties such as fines, seizure, or prosecution under the Act.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online > Offences and penalties"
+    ]
+  },
+  {
+    "id": "q010",
+    "question": "What type of legislation are the Customs Act 1960, CPF Act 1953, and CareShield Life Act 2019?",
+    "answer": "They are Singapore statutes governing customs, compulsory savings, and long-term care insurance respectively.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online",
+      "Central Provident Fund Act 1953 - Singapore Statutes Online",
+      "CareShield Life and Long-Term Care Act 2019 - Singapore Statutes Online"
+    ]
+  }
+]

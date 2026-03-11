@@ -19,6 +19,7 @@ except Exception:
 from src.services.embedding_service import EmbeddingService
 from src.retrievers.cohere_reranker import CohereReranker
 from config import as_bool
+from src.graph.simple_kg import SimpleLegalKG
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,24 @@ class HybridRetriever:
         )
         self.rerank_debug_log = as_bool(self.config.get("RERANK_DEBUG_LOG", False), False)
         self.documents = self._load_documents()
+
+        # Ensure stable internal IDs for KG/retrieval alignment
+        for i, d in enumerate(self.documents):
+            d.setdefault("_doc_id", str(d.get("id") or f"doc_{i}"))
+
+        # KG settings
+        self.enable_kg = bool(self.config.get("ENABLE_KG", False))
+        self.kg_boost_weight = float(self.config.get("KG_BOOST_WEIGHT", 0.2))
+        self.kg_max_expansion = int(self.config.get("KG_MAX_EXPANSION", 50))
+        self.kg = None
+        if self.enable_kg:
+            try:
+                self.kg = SimpleLegalKG(self.documents)
+                logger.info("Knowledge Graph enabled")
+            except Exception as exc:
+                logger.warning("Knowledge Graph initialization failed: %s", exc)
+                self.kg = None
+
         self._bm25 = None
         self._bm25_corpus = None
         self._embedding_service = None
@@ -174,6 +193,10 @@ class HybridRetriever:
         # Always retrieve a wider candidate pool first.
         candidate_k = max(top_k, self.rerank_candidate_k)
         candidates = self._hybrid_retrieve(query=query, top_k=candidate_k, query_type=query_type)
+
+        # Apply KG boost before rerank
+        if self.enable_kg:
+            candidates = self._apply_kg_boost(query=query, candidates=candidates)
 
         if self.enable_rerank:
             logger.info("Reranking top %d candidates with Cohere reranker", len(candidates))
@@ -316,3 +339,25 @@ class HybridRetriever:
 
         logger.info(f"Retrieved {len(candidates)} documents for query (hybrid)")
         return candidates
+
+    def _apply_kg_boost(self, query: str, candidates: List[Dict]) -> List[Dict]:
+        """Apply lightweight KG boost to stage-1 candidates."""
+        if not self.kg or not candidates:
+            return candidates
+
+        expanded_doc_ids = self.kg.expand(query=query, max_docs=self.kg_max_expansion)
+        if not expanded_doc_ids:
+            return candidates
+
+        boosted = []
+        for c in candidates:
+            item = dict(c)
+            base = float(item.get("retrieval_score", 0.0))
+            doc_id = str(item.get("_doc_id") or item.get("id") or "")
+            kg_hit = 1.0 if doc_id in expanded_doc_ids else 0.0
+            item["kg_boost"] = kg_hit
+            item["retrieval_score"] = base + (self.kg_boost_weight * kg_hit)
+            boosted.append(item)
+
+        boosted.sort(key=lambda x: x.get("retrieval_score", 0.0), reverse=True)
+        return boosted

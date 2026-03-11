@@ -23,6 +23,7 @@ wheels/
 .installed.cfg
 *.egg
 docs/tmp/
+data/tmp/
 
 # IDE
 .vscode/
