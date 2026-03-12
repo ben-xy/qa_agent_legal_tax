@@ -223,6 +223,46 @@ def normalize_response(resp: Any) -> Dict[str, Any]:
             "pred_citations": [],
         }
 
+    if hasattr(resp, "answer") or hasattr(resp, "response"):
+        answer = getattr(resp, "answer", None) or getattr(resp, "response", None) or getattr(resp, "final_answer", None) or ""
+        citations = (
+            getattr(resp, "citations", None)
+            or getattr(resp, "legal_citations", None)
+            or []
+        )
+        contexts = (
+            getattr(resp, "contexts", None)
+            or getattr(resp, "documents", None)
+            or getattr(resp, "retrieved_docs", None)
+            or getattr(resp, "sources", None)
+            or []
+        )
+
+        retrieved_doc_ids: List[str] = []
+        for c in contexts:
+            if isinstance(c, dict):
+                doc_id = c.get("_doc_id") or c.get("id") or c.get("doc_id")
+            else:
+                doc_id = getattr(c, "_doc_id", None) or getattr(c, "id", None) or getattr(c, "doc_id", None)
+            if doc_id is not None:
+                retrieved_doc_ids.append(str(doc_id))
+
+        if citations and isinstance(citations, list) and not isinstance(citations[0], str):
+            citations = [
+                getattr(x, "text", None)
+                or getattr(x, "citation", None)
+                or (x.get("text") if isinstance(x, dict) else None)
+                or (x.get("citation") if isinstance(x, dict) else None)
+                or str(x)
+                for x in citations
+            ]
+
+        return {
+            "pred_answer": str(answer),
+            "retrieved_doc_ids": retrieved_doc_ids,
+            "pred_citations": citations if isinstance(citations, list) else [],
+        }
+
     if isinstance(resp, dict):
         answer = resp.get("answer") or resp.get("final_answer") or resp.get("response") or ""
         citations = resp.get("citations") or []
