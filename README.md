@@ -1,5 +1,7 @@
 # Singapore Legal & Tax QA Agent
 
+[EN](README.md) | [中文](README_CN.md)
+
 ## Overview
 
 This QA Agent provides intelligent question-answering capabilities for Singapore legal, tax, and compliance questions. It uses Retrieval-Augmented Generation (RAG) with hybrid retrieval combining keyword search and vector similarity.
@@ -59,12 +61,22 @@ qa_agent_legal_tax/
 │   ├── acts_embedding/         # Vector embeddings
 │   └── qa_pairs/               # Generated QA pairs
 ├── scripts/                    # Utility scripts
+├── docs/                       # Project documentation
+│   ├── eval_ground_truth_generation.md
+│   ├── metrics_eval_report.md
 ├── notebooks/                  # Notebook-based Web UI
 ├── tests/                      # Unit tests
 ├── config.py                   # Configuration management
 ├── main.py                     # Entry point
 └── requirements.txt            # Dependencies
 ```
+
+## Documentation
+
+The following documents are maintained under `docs/`:
+
+- `docs/eval_ground_truth_generation.md`: Describes how to generate `data/qa_pairs/eval_ground_truth.jsonl` and the expected input/output schema for evaluation data.
+- `docs/metrics_eval_report.md`: Explains retrieval/generation metric definitions, summarizes latest experiment results, and provides diagnosis plus improvement recommendations.
 
 ## Installation & Quick Start
 
@@ -261,11 +273,12 @@ Hybrid retrieval combines:
 
 - [X] Multi-language support
 - [X] Rerank
+- [X] Evaluation Metrics
+- [X] Web UI interface (notebook + Gradio)
+- [ ] API endpoints
 - [ ] Fine-tuned models for legal domain
 - [ ] Financial report generation
 - [ ] Interactive document upload
-- [X] Web UI interface (notebook + Gradio)
-- [ ] API endpoints
 
 ## License
 
