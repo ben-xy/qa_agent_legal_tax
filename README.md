@@ -100,6 +100,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 LLM_PROVIDER=gemini
 EMBEDDING_PROVIDER=gemini
 GOOGLE_API_KEY=your_google_api_key_here
+GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 ```
 
 5. **Verify and run**

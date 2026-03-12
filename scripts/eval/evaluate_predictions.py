@@ -1,11 +1,11 @@
 import argparse
 import json
+import math
 import re
 from pathlib import Path
 from statistics import mean
-from typing import Dict, List
+from typing import Dict, List, Sequence
 
-from ranx import Qrels, Run, evaluate
 from rouge_score import rouge_scorer
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -64,25 +64,143 @@ def token_f1(pred: str, gold: str) -> float:
 def citation_hit_rate(pred_citations: List[str], gold_citations: List[str]) -> float:
     if not gold_citations:
         return 1.0
-    p = {normalize_text(x) for x in pred_citations}
-    g = {normalize_text(x) for x in gold_citations}
-    return len(p & g) / len(g) if g else 1.0
+    p = [normalize_text(x) for x in pred_citations if normalize_text(x)]
+    g = [normalize_text(x) for x in gold_citations if normalize_text(x)]
+    if not g:
+        return 1.0
+    if not p:
+        return 0.0
+
+    hit_count = 0
+    for gold_item in g:
+        matched = any(
+            (pred_item == gold_item)
+            or (pred_item in gold_item)
+            or (gold_item in pred_item)
+            for pred_item in p
+        )
+        if matched:
+            hit_count += 1
+
+    return hit_count / len(g)
 
 
-def build_qrels_and_run(gt_rows: List[Dict], pred_rows: List[Dict], k: int):
+def get_gold_citations(row: Dict) -> List[str]:
+    """Prefer explicit gold_citations; fallback to references for legacy GT schema."""
+    gold = row.get("gold_citations", [])
+    if isinstance(gold, list) and gold:
+        return gold
+    refs = row.get("references", [])
+    if isinstance(refs, list):
+        return refs
+    return []
+
+
+def _normalize_items(values: Sequence[str]) -> List[str]:
+    items: List[str] = []
+    for value in values:
+        if value is None:
+            continue
+        text = normalize_text(str(value))
+        if text:
+            items.append(text)
+    return items
+
+
+def get_gold_targets(row: Dict) -> List[str]:
+    for key in ("gold_doc_ids", "references", "gold_citations"):
+        values = row.get(key, [])
+        if isinstance(values, list) and values:
+            return _normalize_items(values)
+    return []
+
+
+def get_pred_targets(row: Dict, k: int) -> List[str]:
+    for key in ("retrieved_doc_ids", "pred_citations"):
+        values = row.get(key, [])
+        if isinstance(values, list) and values:
+            return _normalize_items(values[:k])
+    return []
+
+
+def recall_at_k(pred_docs: List[str], gold_docs: List[str]) -> float:
+    if not gold_docs:
+        return 0.0
+    return len(set(pred_docs) & set(gold_docs)) / len(set(gold_docs))
+
+
+def precision_at_k(pred_docs: List[str], gold_docs: List[str], k: int) -> float:
+    if k <= 0:
+        return 0.0
+    return len(set(pred_docs[:k]) & set(gold_docs)) / k
+
+
+def reciprocal_rank_at_k(pred_docs: List[str], gold_docs: List[str], k: int) -> float:
+    gold = set(gold_docs)
+    for rank, doc_id in enumerate(pred_docs[:k], start=1):
+        if doc_id in gold:
+            return 1.0 / rank
+    return 0.0
+
+
+def average_precision_at_k(pred_docs: List[str], gold_docs: List[str], k: int) -> float:
+    gold = set(gold_docs)
+    if not gold:
+        return 0.0
+
+    hits = 0
+    total = 0.0
+    seen = set()
+    for rank, doc_id in enumerate(pred_docs[:k], start=1):
+        if doc_id in gold and doc_id not in seen:
+            hits += 1
+            seen.add(doc_id)
+            total += hits / rank
+    return total / len(gold)
+
+
+def ndcg_at_k(pred_docs: List[str], gold_docs: List[str], k: int) -> float:
+    gold = set(gold_docs)
+    if not gold:
+        return 0.0
+
+    dcg = 0.0
+    for rank, doc_id in enumerate(pred_docs[:k], start=1):
+        if doc_id in gold:
+            dcg += 1.0 / math.log2(rank + 1)
+
+    ideal_hits = min(len(gold), k)
+    idcg = sum(1.0 / math.log2(rank + 1) for rank in range(1, ideal_hits + 1))
+    return dcg / idcg if idcg else 0.0
+
+
+def compute_retrieval_metrics(gt_rows: List[Dict], pred_rows: List[Dict], k: int) -> Dict[str, float]:
     pred_map = {r["id"]: r for r in pred_rows}
-    qrels_dict = {}
-    run_dict = {}
+
+    recalls = []
+    precisions = []
+    mrrs = []
+    ndcgs = []
+    maps = []
 
     for g in gt_rows:
         qid = g["id"]
-        gold_docs = g.get("gold_doc_ids", [])
-        pred_docs = pred_map.get(qid, {}).get("retrieved_doc_ids", [])[:k]
+        gold_docs = get_gold_targets(g)
+        pred_docs = get_pred_targets(pred_map.get(qid, {}), k)
 
-        qrels_dict[qid] = {doc_id: 1 for doc_id in gold_docs}
-        run_dict[qid] = {doc_id: 1.0 / (rank + 1) for rank, doc_id in enumerate(pred_docs)}
+        recalls.append(recall_at_k(pred_docs, gold_docs))
+        precisions.append(precision_at_k(pred_docs, gold_docs, k))
+        mrrs.append(reciprocal_rank_at_k(pred_docs, gold_docs, k))
+        ndcgs.append(ndcg_at_k(pred_docs, gold_docs, k))
+        maps.append(average_precision_at_k(pred_docs, gold_docs, k))
 
-    return Qrels(qrels_dict), Run(run_dict)
+    return {
+        f"recall@{k}": mean(recalls) if recalls else 0.0,
+        f"precision@{k}": mean(precisions) if precisions else 0.0,
+        f"ndcg@{k}": mean(ndcgs) if ndcgs else 0.0,
+        f"mrr@{k}": mean(mrrs) if mrrs else 0.0,
+        f"map@{k}": mean(maps) if maps else 0.0,
+    }
 
 
 def main():
@@ -98,18 +216,7 @@ def main():
     pred_map = {r["id"]: r for r in pred_rows}
 
     # Retrieval metrics
-    qrels, run = build_qrels_and_run(gt_rows, pred_rows, args.k)
-    retrieval = evaluate(
-        qrels,
-        run,
-        metrics=[
-            f"recall@{args.k}",
-            f"precision@{args.k}",
-            f"ndcg@{args.k}",
-            f"mrr@{args.k}",
-            f"map@{args.k}",
-        ],
-    )
+    retrieval = compute_retrieval_metrics(gt_rows, pred_rows, args.k)
 
     # Generation metrics
     scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
@@ -126,7 +233,7 @@ def main():
         rouges.append(scorer.score(gold_answer, pred_answer)["rougeL"].fmeasure)
 
         pred_citations = p.get("pred_citations", [])
-        gold_citations = g.get("gold_citations", [])
+        gold_citations = get_gold_citations(g)
         cites.append(citation_hit_rate(pred_citations, gold_citations))
 
     report = {

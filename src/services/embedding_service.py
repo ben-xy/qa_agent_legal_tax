@@ -3,7 +3,7 @@ Embedding service for generating document and query embeddings.
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, List, Optional, Tuple
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -24,6 +24,8 @@ class EmbeddingService:
         self.model = self._config_get('embedding_model', 'text-embedding-3-small')
         self.dimension = int(self._config_get('embedding_dimension', 1536))
         self.client = None
+        self._gemini_types = None
+        self._gemini_api_version = None
 
         self._init_client()
 
@@ -49,18 +51,104 @@ class EmbeddingService:
         elif self.provider == 'gemini':
             try:
                 from google import genai
+                from google.genai import types as genai_types
 
                 api_key = self._config_get('google_api_key')
                 if not api_key:
                     raise ValueError("GOOGLE_API_KEY is required when EMBEDDING_PROVIDER=gemini")
 
-                self.client = genai.Client(api_key=api_key)
-                self.model = self._config_get('gemini_embedding_model', 'models/text-embedding-004')
+                self._gemini_types = genai_types
+                configured_model = self._config_get('gemini_embedding_model', 'gemini-embedding-001')
+                configured_api_version = self._config_get('gemini_api_version')
+
+                self.client, self.model, self._gemini_api_version = self._resolve_gemini_model(
+                    genai=genai,
+                    genai_types=genai_types,
+                    api_key=api_key,
+                    configured_model=configured_model,
+                    configured_api_version=configured_api_version,
+                )
+
+                logger.info(
+                    "Using Gemini embedding model %s (api_version=%s, dimension=%s)",
+                    self.model,
+                    self._gemini_api_version or 'default',
+                    self.dimension,
+                )
             except ImportError as exc:
                 logger.error("google-genai package not installed")
                 raise ImportError("Please install google-genai package") from exc
         else:
             raise ValueError(f"Unsupported embedding provider: {self.provider}")
+
+    def _normalize_gemini_model_name(self, model_name: Optional[str]) -> str:
+        model_name = (model_name or '').strip()
+        if model_name.startswith('models/'):
+            model_name = model_name[len('models/'):]
+        return model_name
+
+    def _unique_values(self, values: List[Optional[str]]) -> List[Optional[str]]:
+        seen = set()
+        unique: List[Optional[str]] = []
+        for value in values:
+            key = value if value else '__default__'
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(value)
+        return unique
+
+    def _build_gemini_client(self, genai, genai_types, api_key: str, api_version: Optional[str]):
+        kwargs = {'api_key': api_key}
+        if api_version:
+            kwargs['http_options'] = genai_types.HttpOptions(api_version=api_version)
+        return genai.Client(**kwargs)
+
+    def _probe_gemini_model(self, client, genai_types, model_name: str) -> None:
+        client.models.embed_content(
+            model=model_name,
+            contents='embedding probe',
+            config=genai_types.EmbedContentConfig(output_dimensionality=self.dimension),
+        )
+
+    def _resolve_gemini_model(
+        self,
+        genai,
+        genai_types,
+        api_key: str,
+        configured_model: Optional[str],
+        configured_api_version: Optional[str],
+    ) -> Tuple[Any, str, Optional[str]]:
+        candidate_models = self._unique_values([
+            self._normalize_gemini_model_name(configured_model),
+            'gemini-embedding-001',
+            'gemini-embedding-2-preview',
+        ])
+        candidate_versions = self._unique_values([
+            configured_api_version,
+            None,
+            'v1beta',
+            'v1',
+        ])
+
+        errors: List[str] = []
+        for api_version in candidate_versions:
+            client = self._build_gemini_client(genai, genai_types, api_key, api_version)
+            for model_name in candidate_models:
+                if not model_name:
+                    continue
+                try:
+                    self._probe_gemini_model(client, genai_types, model_name)
+                    return client, model_name, api_version
+                except Exception as exc:
+                    errors.append(f"model={model_name}, api_version={api_version or 'default'} -> {exc}")
+
+        error_summary = '; '.join(errors[:6])
+        raise RuntimeError(
+            'No working Gemini embedding model found for the configured API key. '
+            f'Tried models {candidate_models} across API versions {candidate_versions}. '
+            f'Sample errors: {error_summary}'
+        )
     
     def embed(self, text: str) -> np.ndarray:
         """
@@ -107,7 +195,7 @@ class EmbeddingService:
                     )
                     batch_embeddings = [item.embedding for item in response.data]
                 else:
-                    batch_embeddings = [self._embed_gemini(text) for text in batch]
+                    batch_embeddings = self._embed_gemini_batch(batch, task_type='RETRIEVAL_DOCUMENT')
                 embeddings.extend(batch_embeddings)
                 
                 logger.info(f"Embedded {i + len(batch)}/{len(texts)} texts")
@@ -145,10 +233,28 @@ class EmbeddingService:
         )
         return response.data[0].embedding
 
-    def _embed_gemini(self, text: str) -> List[float]:
+    def _embed_gemini(self, text: str, task_type: Optional[str] = None) -> List[float]:
         """Generate embedding using Gemini API."""
+        config = self._gemini_types.EmbedContentConfig(
+            output_dimensionality=self.dimension,
+            task_type=task_type,
+        )
         response = self.client.models.embed_content(
             model=self.model,
-            contents=text
+            contents=text,
+            config=config,
         )
         return response.embeddings[0].values
+
+    def _embed_gemini_batch(self, texts: List[str], task_type: Optional[str] = None) -> List[List[float]]:
+        """Generate embeddings for a batch of texts using Gemini API."""
+        config = self._gemini_types.EmbedContentConfig(
+            output_dimensionality=self.dimension,
+            task_type=task_type,
+        )
+        response = self.client.models.embed_content(
+            model=self.model,
+            contents=texts,
+            config=config,
+        )
+        return [item.values for item in response.embeddings]

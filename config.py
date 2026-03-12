@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Dict, Any
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables and prefer .env values in notebook/script workflows
+load_dotenv(override=True)
 
 def as_bool(value, default: bool = False) -> bool:
     """
@@ -58,7 +58,8 @@ class Config:
 
     # Gemini Configuration
     GEMINI_LLM_MODEL = os.getenv("GEMINI_LLM_MODEL", "gemini-2.5-flash")
-    GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "models/text-embedding-004")
+    GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
+    GEMINI_API_VERSION = os.getenv("GEMINI_API_VERSION")
     
     # Embedding Configuration
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
@@ -67,6 +68,9 @@ class Config:
     # Retrieval Configuration
     RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "5"))
     RETRIEVAL_SCORE_THRESHOLD = float(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "0.5"))
+    USE_BM25 = as_bool(os.getenv("USE_BM25", "true"), True)
+    USE_VECTOR = as_bool(os.getenv("USE_VECTOR", "true"), True)
+    HYBRID_ALPHA = float(os.getenv("HYBRID_ALPHA", "0.5"))
     BM25_K1 = 1.5
     BM25_B = 0.75
 

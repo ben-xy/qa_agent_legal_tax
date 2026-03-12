@@ -305,8 +305,8 @@ class HybridRetriever:
         if not self.documents:
             return []
         
-        use_bm25 = self.config.get("use_bm25", True) and _HAS_BM25 and self._bm25 is not None
-        use_vector = self.config.get("use_vector", True)
+        use_bm25 = bool(self.config.get("use_bm25", self.config.get("USE_BM25", True))) and _HAS_BM25 and self._bm25 is not None
+        use_vector = bool(self.config.get("use_vector", self.config.get("USE_VECTOR", True)))
 
         if not use_bm25 and not use_vector:
             return self._keyword_search(query, top_k)
@@ -332,7 +332,7 @@ class HybridRetriever:
 
         bm25_norm = self._minmax_norm(bm25_scores)
         vec_norm = self._minmax_norm(vec_scores)
-        alpha = float(self.config.get("hybrid_alpha", 0.5))
+        alpha = float(self.config.get("hybrid_alpha", self.config.get("HYBRID_ALPHA", 0.5)))
 
         hybrid_scores = alpha * bm25_norm + (1.0 - alpha) * vec_norm
         candidates = self._topk_by_scores(hybrid_scores, top_k)
