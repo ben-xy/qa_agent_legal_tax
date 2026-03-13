@@ -69,3 +69,14 @@ def get_logger(name: str) -> logging.Logger:
         Logger instance
     """
     return logging.getLogger(name)
+
+
+def display_path(path: Path | str, root: Path) -> str:
+    """Return a repo-relative display path prefixed with repo folder name."""
+    p = Path(path).resolve() if not isinstance(path, Path) else path.resolve()
+    r = root.resolve()
+    try:
+        rel = p.relative_to(r)
+        return r.name if str(rel) == "." else f"{r.name}/{rel.as_posix()}"
+    except Exception:
+        return str(path)

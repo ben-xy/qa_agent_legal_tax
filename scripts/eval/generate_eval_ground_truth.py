@@ -2,8 +2,14 @@ import argparse
 import csv
 import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from src.utils.logger import display_path
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     rows = []
@@ -17,7 +23,7 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
                 if isinstance(obj, dict):
                     rows.append(obj)
             except Exception:
-                print(f"[WARN] Skipping invalid JSONL line {i}: {path}")
+                print(f"[WARN] Skipping invalid JSONL line {i}: {display_path(path, ROOT)}")
     return rows
 
 def read_json(path: Path) -> list[dict[str, Any]]:
@@ -154,8 +160,8 @@ def main():
     out_path = (root / args.out_file).resolve() if not Path(args.out_file).is_absolute() else Path(args.out_file)
     write_jsonl(out_path, out_rows)
 
-    print(f"[OK] Input : {in_path}")
-    print(f"[OK] Output: {out_path}")
+    print(f"[OK] Input : {display_path(in_path, ROOT)}")
+    print(f"[OK] Output: {display_path(out_path, ROOT)}")
     print(f"[OK] Kept={len(out_rows)}, Dropped={dropped}")
 
 def main():
@@ -208,8 +214,8 @@ def main():
     out_path = (root / args.out_file).resolve() if not Path(args.out_file).is_absolute() else Path(args.out_file)
     write_jsonl(out_path, out_rows)
 
-    print(f"[OK] Input : {in_path}")
-    print(f"[OK] Output: {out_path}")
+    print(f"[OK] Input : {display_path(in_path, ROOT)}")
+    print(f"[OK] Output: {display_path(out_path, ROOT)}")
     print(f"[OK] Kept={len(out_rows)}, Dropped={dropped}")
 
 
