@@ -45,7 +45,7 @@ class HybridRetriever:
             d.setdefault("_doc_id", str(d.get("id") or f"doc_{i}"))
 
         # KG settings
-        self.enable_kg = bool(self.config.get("ENABLE_KG", False))
+        self.enable_kg = as_bool(self.config.get("ENABLE_KG", self.config.get("enable_kg", False)), False)
         self.kg_boost_weight = float(self.config.get("KG_BOOST_WEIGHT", 0.2))
         self.kg_max_expansion = int(self.config.get("KG_MAX_EXPANSION", 50))
         self.kg = None
@@ -70,7 +70,7 @@ class HybridRetriever:
     def _load_documents(self) -> List[Dict]:
         """Load documents from chunked acts."""
         documents = []
-        acts_dir = Path(self.config.get('acts_chunked_dir', 'data/acts_chunked'))
+        acts_dir = Path(self.config.get("acts_chunked_dir", self.config.get("ACTS_CHUNKED_DIR", "data/acts_chunked")))
         
         if not acts_dir.exists():
             logger.warning(f"acts_chunked_dir not found: {acts_dir}")

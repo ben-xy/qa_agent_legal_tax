@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[2]  # repo root
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from src.utils.logger import display_path
+
 
 def resolve_path(p: str) -> Path:
     path = Path(p)
@@ -328,8 +330,8 @@ def _write_run_snapshot(args, pred_out_path: Path) -> Path:
 
     snapshot = {
         "timestamp_local": now.isoformat(timespec="seconds"),
-        "ground_truth": str(getattr(args, "gt", "")),
-        "pred_output": str(pred_out_path),
+        "ground_truth": display_path(resolve_path(getattr(args, "gt", "")), ROOT),
+        "pred_output": display_path(pred_out_path, ROOT),
         "settings": {
             "enable_rerank": enable_rerank,
             "top_k": int(top_k),
@@ -342,7 +344,7 @@ def _write_run_snapshot(args, pred_out_path: Path) -> Path:
         json.dumps(snapshot, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    print(f"[snapshot] Saved run config snapshot: {snapshot_path}")
+    print(f"[snapshot] Saved run config snapshot: {display_path(snapshot_path, ROOT)}")
     return snapshot_path
 
 
@@ -394,7 +396,7 @@ def main():
         )
 
     write_jsonl(out_path, preds)
-    print(f"Saved predictions: {out_path} (n={len(preds)})")
+    print(f"Saved predictions: {display_path(out_path, ROOT)} (n={len(preds)})")
     _write_run_snapshot(args, out_path)
 
 

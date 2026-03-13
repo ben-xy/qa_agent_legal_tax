@@ -64,6 +64,8 @@ qa_agent_legal_tax/
 ├── docs/                       # Project documentation
 │   ├── eval_ground_truth_generation.md
 │   ├── metrics_eval_report.md
+│   ├── chunking_strategies_guide.md
+│   ├── rag_strategies_guide.md
 ├── notebooks/                  # Notebook-based Web UI
 ├── tests/                      # Unit tests
 ├── config.py                   # Configuration management
@@ -77,6 +79,8 @@ The following documents are maintained under `docs/`:
 
 - `docs/eval_ground_truth_generation.md`: Describes how to generate `data/qa_pairs/eval_ground_truth.jsonl` and the expected input/output schema for evaluation data.
 - `docs/metrics_eval_report.md`: Explains retrieval/generation metric definitions, summarizes latest experiment results, and provides diagnosis plus improvement recommendations.
+- `docs/chunking_strategies_guide.md`: Summarizes the active chunking strategies, trade-offs, and recommended usage scenarios in this project.
+- `docs/rag_strategies_guide.md`: Documents current RAG strategy variants (hybrid, rerank, KG), with pros/cons and strategy selection guidance.
 
 ## Installation & Quick Start
 
@@ -275,6 +279,7 @@ Hybrid retrieval combines:
 - [X] Rerank
 - [X] Evaluation Metrics
 - [X] Web UI interface (notebook + Gradio)
+- [X] Knowledge Graph
 - [ ] API endpoints
 - [ ] Fine-tuned models for legal domain
 - [ ] Financial report generation
