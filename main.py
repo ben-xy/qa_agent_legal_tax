@@ -56,7 +56,7 @@ def initialize_agent() -> QAAgent:
 def print_welcome():
     """Print welcome message."""
     print("\n" + "=" * 80)
-    print("   Singapore Legal & Tax QA Agent - CS614 GenAI")
+    print("   Singapore Legal & Tax QA Agent")
     print("=" * 80)
     print("\nThis agent can answer questions about:")
     print("  • Singapore legal regulations and acts")
