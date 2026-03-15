@@ -82,9 +82,11 @@ class HybridRetriever:
                     data = json.load(f)
                 if isinstance(data, list):
                     for d in data:
+                        self._normalize_document_schema(d, file_path)
                         d["_source_file"] = str(file_path)
                     documents.extend(data)
                 elif isinstance(data, dict):
+                    self._normalize_document_schema(data, file_path)
                     data["_source_file"] = str(file_path)
                     documents.append(data)
             except Exception as e:
@@ -92,6 +94,26 @@ class HybridRetriever:
         
         logger.info(f"Loaded {len(documents)} document chunks")
         return documents
+
+    def _normalize_document_schema(self, doc: Dict, file_path: Path) -> None:
+        """Normalize chunk fields so downstream code can rely on source/content keys."""
+        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+
+        # Normalize content field for prompt/context builder.
+        if not doc.get("content"):
+            content = doc.get("page_content") or doc.get("text") or doc.get("chunk") or doc.get("body")
+            if isinstance(content, str) and content.strip():
+                doc["content"] = content
+
+        # Normalize source field for CLI Sources display.
+        if not doc.get("source"):
+            source = (
+                metadata.get("Law")
+                or metadata.get("source")
+                or metadata.get("title")
+                or file_path.stem
+            )
+            doc["source"] = str(source)
     
     def _short_text(self, text: str, limit: int = 220) -> str:
         text = (text or "").replace("\n", " ").strip()
@@ -225,7 +247,7 @@ class HybridRetriever:
         self._bm25 = BM25Okapi(corpus)
     
     def _get_doc_text(self, doc: Dict) -> str:
-        for key in ("content", "text", "chunk", "body"):
+        for key in ("content", "page_content", "text", "chunk", "body"):
             if key in doc and isinstance(doc[key], str):
                 return doc[key]
         return str(doc)
@@ -285,8 +307,7 @@ class HybridRetriever:
         results = []
         
         for doc in self.documents:
-            content = doc.get('content', '').lower()
-            source = doc.get('source', '')
+            content = self._get_doc_text(doc).lower()
             
             # Count matching terms
             matches = sum(1 for term in query_terms if term in content)

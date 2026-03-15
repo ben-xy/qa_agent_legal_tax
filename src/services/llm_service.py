@@ -172,8 +172,22 @@ class LLMService:
         current_length = 0
         
         for doc in documents:
-            source = doc.get('source', 'Unknown Source')
-            content = doc.get('content', '')[:500]
+            metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+            source = (
+                doc.get("source")
+                or metadata.get("Law")
+                or metadata.get("source")
+                or metadata.get("title")
+                or "Unknown Source"
+            )
+            content = (
+                doc.get("content")
+                or doc.get("page_content")
+                or doc.get("text")
+                or doc.get("chunk")
+                or doc.get("body")
+                or ""
+            )[:500]
             
             snippet = f"Source: {source}\nContent: {content}\n"
             

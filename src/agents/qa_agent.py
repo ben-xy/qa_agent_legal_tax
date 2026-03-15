@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
 import time
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,7 @@ class QAAgent:
             citations = self._extract_citations(answer)
             
             # Get sources
-            sources = [doc.get('source', 'Unknown') for doc in documents]
+            sources = [self._extract_source_label(doc) for doc in documents]
             
             processing_time = time.time() - start_time
             
@@ -125,6 +126,25 @@ class QAAgent:
         except Exception as e:
             logger.error(f"Error processing query: {str(e)}", exc_info=True)
             raise
+
+    def _extract_source_label(self, doc: Dict) -> str:
+        """Best-effort source label extraction for CLI display."""
+        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+        source = (
+            doc.get("source")
+            or metadata.get("Law")
+            or metadata.get("source")
+            or metadata.get("title")
+        )
+
+        if source:
+            return str(source)
+
+        source_file = doc.get("_source_file")
+        if source_file:
+            return Path(str(source_file)).stem
+
+        return "Unknown"
     
     def _classify_query(self, query: str) -> str:
         """Classify query into: general, compliance, financial, tax."""
@@ -163,17 +183,53 @@ class QAAgent:
     def _extract_citations(self, text: str) -> List[str]:
         """Extract legal citations from text."""
         import re
+        if not text:
+            return []
+
+        act_title = r'(?:[A-Z][A-Za-z0-9&()\-]*)(?:\s+[A-Z][A-Za-z0-9&()\-]*)*\s(?:Act|Regulation|Regulations)\s\d{4}'
+
         patterns = [
-            r'(?:Section|S\.)\s+(\d+[A-Za-z]*(?:\([a-zA-Z0-9]\))*)',
-            r'(?:Act|Regulation)\s+(\d{4})',
+            rf'\b(?:Section|S\.)\s*\d+[A-Za-z]?(?:\([0-9A-Za-z]+\))*\s+of\s+the\s+{act_title}\b',
+            rf'\b{act_title}\b',
+            r'\b(?:Section|S\.)\s*\d+[A-Za-z]?(?:\([0-9A-Za-z]+\))*\b',
         ]
-        
-        citations = []
-        for pattern in patterns:
-            matches = re.finditer(pattern, text, re.IGNORECASE)
-            citations.extend([match.group(0) for match in matches])
-        
-        return list(set(citations))
+
+        raw_citations: List[str] = []
+        seen = set()
+        for i, pattern in enumerate(patterns):
+            # Act-title patterns must NOT use IGNORECASE:
+            # [A-Z] must stay strict so lowercase connective words like "the",
+            # "based", "drawing" cannot anchor the start of a match.
+            # Only the standalone Section pattern (index 2) uses IGNORECASE.
+            flags = re.IGNORECASE if i == 2 else 0
+            for match in re.finditer(pattern, text, flags):
+                citation = re.sub(r'\s+', ' ', match.group(0)).strip(' ,.;:')
+                key = citation.lower()
+                if not citation or key in seen:
+                    continue
+                seen.add(key)
+                raw_citations.append(citation)
+
+        # Keep the most specific citation when shorter ones are contained inside it.
+        raw_citations.sort(key=len, reverse=True)
+        filtered: List[str] = []
+        filtered_lower: List[str] = []
+        for citation in raw_citations:
+            citation_lower = citation.lower()
+            # Must start with an uppercase letter (proper act name) or "Section/S."
+            if not (citation[0].isupper() or citation_lower.startswith('section') or citation_lower.startswith('s.')):
+                continue
+            # Drop fragments that are clearly mid-sentence (common connective prefixes)
+            connective_prefixes = ('of the ', 'and the ', 'or the ', 'in the ', 'under the ', 'pursuant to the ')
+            if any(citation_lower.startswith(p) for p in connective_prefixes):
+                continue
+            # Drop if already fully contained within a longer citation already kept
+            if any(citation_lower in kept for kept in filtered_lower):
+                continue
+            filtered.append(citation)
+            filtered_lower.append(citation_lower)
+
+        return filtered
     
     def get_conversation_history(self) -> List[Dict]:
         """Get conversation history."""
