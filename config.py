@@ -130,7 +130,8 @@ class DevelopmentConfig(Config):
     """Development environment configuration."""
     DEBUG = True
     LLM_TEMPERATURE = 0.5
-    LOG_LEVEL = "DEBUG"
+    # Prefer .env LOG_LEVEL when provided; fallback to DEBUG for local dev.
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG")
 
 
 class ProductionConfig(Config):

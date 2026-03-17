@@ -67,11 +67,11 @@ def build_agent():
     cfg = get_config()
     cfg_dict = cfg.to_dict() if hasattr(cfg, "to_dict") else cfg
 
-    print(f"[debug] QAAgent.__init__ signature: {inspect.signature(QAAgent.__init__)}")
+    print(f"QAAgent.__init__ signature: {inspect.signature(QAAgent.__init__)}")
     if isinstance(cfg_dict, dict):
-        print(f"[debug] cfg_dict keys ({len(cfg_dict)}): {sorted(cfg_dict.keys())}")
+        print(f"cfg_dict keys ({len(cfg_dict)}): {sorted(cfg_dict.keys())}")
     else:
-        print(f"[debug] cfg_dict is not dict, type={type(cfg_dict).__name__}")
+        print(f"cfg_dict is not dict, type={type(cfg_dict).__name__}")
 
     retriever = (
         _try_make("src.retrievers.hybrid_retriever", "HybridRetriever", cfg, cfg_dict)
