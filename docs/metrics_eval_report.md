@@ -102,19 +102,13 @@ Note:
 
 ### 3.3 Metrics Description 
 - Why exact_match is 0.0 across all runs?
-```
 The exact match metric is strict and requires the predicted answer to match the GT answer exactly after normalization. In our case, the answers are often semantically correct but lexically different from the GT, leading to zero exact matches.
-```
 
 - Why token_f1 and rougeL_f1 are relatively low?
-```
 The answers are often semantically correct but lexically different from GT, leading to low token/ROUGE scores.
-```
 
 - Why some high token-score runs are not ranked first
-```
 `gen_avg` is the arithmetic mean of four generation metrics:
-
 $$
 gen\_avg = \frac{exact\_match + token\_f1 + rougeL\_f1 + citation\_hit\_rate}{4}
 $$
@@ -126,7 +120,6 @@ This creates a balancing effect across metrics. For example:
 - so `Hybrid_plus_Rerank` ranks higher overall.
 
 Therefore, a single strong metric does not guarantee top overall rank.
-```
 
 ## 4. Diagnosis
 
