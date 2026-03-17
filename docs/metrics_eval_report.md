@@ -83,39 +83,14 @@ Interpretation:
 
 Note:
 
-- Ranking excludes legacy file `outputs/ablation/eval_BM25_only.json`.
 - Retrieval metrics are identical across these 8 runs, so rank differences come from generation metrics (`gen_avg`).
-
-### 3.1 Main pipeline outputs
-
-From outputs/eval_hybrid.json:
-
-- recall@5: 0.9333
-- precision@5: 0.8600
-- ndcg@5: 2.4723
-- mrr@5: 1.0000
-- map@5: 0.9333
-- exact_match: 0.0000
-- token_f1: 0.1072
-- rougeL_f1: 0.1012
-- citation_hit_rate: 0.5333
-
-From outputs/eval_hybrid_rerank.json:
-
-- recall@5: 0.9333
-- precision@5: 0.8600
-- ndcg@5: 2.4723
-- mrr@5: 1.0000
-- map@5: 0.9333
-- exact_match: 0.0000
-- token_f1: 0.1036
-- rougeL_f1: 0.1009
-- citation_hit_rate: 0.6333
 
 ### 3.2 Ablation outputs
 
 | Experiment                 | recall@5 |  mrr@5 | exact_match | token_f1 | rougeL_f1 | citation_hit_rate |
 | -------------------------- | -------: | -----: | ----------: | -------: | --------: | ----------------: |
+| Hybrid_plus_Rerank         |   0.9333 | 1.0000 |      0.0000 |   0.1036 |    0.1009 |            0.6333 |
+| Hybrid                     |   0.9333 | 1.0000 |      0.0000 |   0.1072 |    0.1012 |            0.5333 |
 | BM25                       |   0.9333 | 1.0000 |      0.0000 |   0.0728 |    0.0649 |            0.4667 |
 | BM25_plus_KG               |   0.9333 | 1.0000 |      0.0000 |   0.1225 |    0.1104 |            0.6667 |
 | BM25_plus_Rerank           |   0.9333 | 1.0000 |      0.0000 |   0.1127 |    0.1064 |            0.6333 |
@@ -125,8 +100,19 @@ From outputs/eval_hybrid_rerank.json:
 | Hybrid_plus_Rerank         |   0.9333 | 1.0000 |      0.0000 |   0.1147 |    0.1112 |            0.7667 |
 | Hybrid_plus_Rerank_plus_KG |   0.9333 | 1.0000 |      0.0000 |   0.1092 |    0.1038 |            0.6667 |
 
-### 3.3 Why some high token-score runs are not ranked first
+### 3.3 Metrics Description 
+- Why exact_match is 0.0 across all runs?
+```
+The exact match metric is strict and requires the predicted answer to match the GT answer exactly after normalization. In our case, the answers are often semantically correct but lexically different from the GT, leading to zero exact matches.
+```
 
+- Why token_f1 and rougeL_f1 are relatively low?
+```
+The answers are often semantically correct but lexically different from GT, leading to low token/ROUGE scores.
+```
+
+- Why some high token-score runs are not ranked first
+```
 `gen_avg` is the arithmetic mean of four generation metrics:
 
 $$
@@ -140,6 +126,7 @@ This creates a balancing effect across metrics. For example:
 - so `Hybrid_plus_Rerank` ranks higher overall.
 
 Therefore, a single strong metric does not guarantee top overall rank.
+```
 
 ## 4. Diagnosis
 
