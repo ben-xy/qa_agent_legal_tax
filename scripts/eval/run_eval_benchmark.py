@@ -244,6 +244,8 @@ def normalize_response(resp: Any) -> Dict[str, Any]:
         for c in contexts:
             if isinstance(c, dict):
                 doc_id = c.get("_doc_id") or c.get("id") or c.get("doc_id")
+            elif isinstance(c, str):
+                doc_id = c.strip()
             else:
                 doc_id = getattr(c, "_doc_id", None) or getattr(c, "id", None) or getattr(c, "doc_id", None)
             if doc_id is not None:
@@ -276,6 +278,10 @@ def normalize_response(resp: Any) -> Dict[str, Any]:
                 doc_id = c.get("_doc_id") or c.get("id") or c.get("doc_id")
                 if doc_id is not None:
                     retrieved_doc_ids.append(str(doc_id))
+            elif isinstance(c, str):
+                text = c.strip()
+                if text:
+                    retrieved_doc_ids.append(text)
 
         if citations and isinstance(citations, list) and isinstance(citations[0], dict):
             citations = [x.get("text") or x.get("citation") or str(x) for x in citations]

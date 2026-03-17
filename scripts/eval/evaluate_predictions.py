@@ -123,53 +123,72 @@ def get_pred_targets(row: Dict, k: int) -> List[str]:
     return []
 
 
+def _target_match(pred_item: str, gold_item: str) -> bool:
+    return (
+        pred_item == gold_item
+        or pred_item in gold_item
+        or gold_item in pred_item
+    )
+
+
+def _is_relevant(pred_item: str, gold_docs: List[str]) -> bool:
+    return any(_target_match(pred_item, gold_item) for gold_item in gold_docs)
+
+
+def _matched_gold_count(pred_docs: List[str], gold_docs: List[str]) -> int:
+    matched_idx = set()
+    for pred_item in pred_docs:
+        for idx, gold_item in enumerate(gold_docs):
+            if _target_match(pred_item, gold_item):
+                matched_idx.add(idx)
+    return len(matched_idx)
+
+
 def recall_at_k(pred_docs: List[str], gold_docs: List[str]) -> float:
     if not gold_docs:
         return 0.0
-    return len(set(pred_docs) & set(gold_docs)) / len(set(gold_docs))
+    return _matched_gold_count(pred_docs, gold_docs) / len(gold_docs)
 
 
 def precision_at_k(pred_docs: List[str], gold_docs: List[str], k: int) -> float:
     if k <= 0:
         return 0.0
-    return len(set(pred_docs[:k]) & set(gold_docs)) / k
+    hits = sum(1 for doc in pred_docs[:k] if _is_relevant(doc, gold_docs))
+    return hits / k
 
 
 def reciprocal_rank_at_k(pred_docs: List[str], gold_docs: List[str], k: int) -> float:
-    gold = set(gold_docs)
     for rank, doc_id in enumerate(pred_docs[:k], start=1):
-        if doc_id in gold:
+        if _is_relevant(doc_id, gold_docs):
             return 1.0 / rank
     return 0.0
 
 
 def average_precision_at_k(pred_docs: List[str], gold_docs: List[str], k: int) -> float:
-    gold = set(gold_docs)
-    if not gold:
+    if not gold_docs:
         return 0.0
 
     hits = 0
     total = 0.0
     seen = set()
     for rank, doc_id in enumerate(pred_docs[:k], start=1):
-        if doc_id in gold and doc_id not in seen:
+        if _is_relevant(doc_id, gold_docs) and doc_id not in seen:
             hits += 1
             seen.add(doc_id)
             total += hits / rank
-    return total / len(gold)
+    return total / len(gold_docs)
 
 
 def ndcg_at_k(pred_docs: List[str], gold_docs: List[str], k: int) -> float:
-    gold = set(gold_docs)
-    if not gold:
+    if not gold_docs:
         return 0.0
 
     dcg = 0.0
     for rank, doc_id in enumerate(pred_docs[:k], start=1):
-        if doc_id in gold:
+        if _is_relevant(doc_id, gold_docs):
             dcg += 1.0 / math.log2(rank + 1)
 
-    ideal_hits = min(len(gold), k)
+    ideal_hits = min(len(gold_docs), k)
     idcg = sum(1.0 / math.log2(rank + 1) for rank in range(1, ideal_hits + 1))
     return dcg / idcg if idcg else 0.0
 
