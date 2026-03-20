@@ -35,12 +35,20 @@ GT basis:
 
 Computed in scripts/eval/evaluate_predictions.py using normalized text matching between:
 
-- GT targets: gold_doc_ids, fallback to references, fallback to gold_citations
-- Pred targets: retrieved_doc_ids, fallback to pred_citations
+- GT targets: `gold_doc_ids`, fallback to `references`, fallback to `gold_citations`
+- Pred targets: `eval_friendly_doc_ids`, fallback to `retrieved_doc_ids`, fallback to `pred_citations`
 
-Matching rule is overlap-aware after normalization:
+Matching rule now uses **law-title normalization** before scoring:
 
-- exact match OR substring match in either direction
+- Examples mapped to a comparable title form:
+   - `doc_234::Customs Act 1960::chunk=...` -> `customs act 1960`
+   - `Customs Act 1960 - Singapore Statutes Online > ...` -> `customs act 1960`
+- Retrieval relevance match is equality on normalized law titles.
+
+Prediction format update in scripts/eval/run_eval_benchmark.py:
+
+- `retrieved_doc_ids`: canonical chunk-level IDs (kept for traceability)
+- `eval_friendly_doc_ids`: law-title friendly IDs (added for evaluation matching)
 
 Reported metrics:
 
@@ -70,35 +78,35 @@ Interpretation:
 
 ![Ablation Comparison](eval_output.png)
 
-| Rank | experiment                 | retrieval_avg |  gen_avg | recall@5 | mrr@5 | gen_token_f1 | gen_rougeL_f1 | gen_citation_hit_rate |
-| ---: | -------------------------- | ------------: | -------: | -------: | ----: | -----------: | ------------: | --------------------: |
-|    1 | Hybrid_plus_Rerank         |      1.239796 | 0.248122 |   0.9333 | 1.000 |     0.114657 |      0.111163 |              0.766667 |
-|    2 | Hybrid                     |      1.239796 | 0.243715 |   0.9333 | 1.000 |     0.106589 |      0.101605 |              0.766667 |
-|    3 | BM25_plus_KG               |      1.239796 | 0.224886 |   0.9333 | 1.000 |     0.122516 |      0.110360 |              0.666667 |
-|    4 | BM25_plus_Rerank_plus_KG   |      1.239796 | 0.222398 |   0.9333 | 1.000 |     0.096346 |      0.093247 |              0.700000 |
-|    5 | Hybrid_plus_Rerank_plus_KG |      1.239796 | 0.219927 |   0.9333 | 1.000 |     0.109247 |      0.103795 |              0.666667 |
-|    6 | BM25_plus_Rerank           |      1.239796 | 0.213107 |   0.9333 | 1.000 |     0.112713 |      0.106382 |              0.633333 |
-|    7 | Hybrid_plus_KG             |      1.239796 | 0.212963 |   0.9333 | 1.000 |     0.093020 |      0.092167 |              0.666667 |
-|    8 | BM25                       |      1.239796 | 0.151082 |   0.9333 | 1.000 |     0.072777 |      0.064886 |              0.466667 |
+| Rank | experiment                 | retrieval_avg | gen_avg | recall@5 | precision@5 | ndcg@5 | mrr@5 | map@5 |
+| ---: | -------------------------- | ------------: | ------: | -------: | ----------: | -----: | ----: | ----: |
+|    1 | BM25                       |      0.703093 |  0.0000 |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |
+|    2 | BM25_plus_KG               |      0.703093 |  0.0000 |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |
+|    3 | BM25_plus_Rerank           |      0.703093 |  0.0000 |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |
+|    4 | BM25_plus_Rerank_plus_KG   |      0.703093 |  0.0000 |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |
+|    5 | Hybrid                     |      0.703093 |  0.0000 |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |
+|    6 | Hybrid_plus_KG             |      0.703093 |  0.0000 |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |
+|    7 | Hybrid_plus_Rerank         |      0.703093 |  0.0000 |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |
+|    8 | Hybrid_plus_Rerank_plus_KG |      0.703093 |  0.0000 |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |
 
 Note:
 
-- Retrieval metrics are identical across these 8 runs, so rank differences come from generation metrics (`gen_avg`).
+- Retrieval metrics are no longer zero after law-title normalization, indicating matching has been restored.
+- Retrieval metrics are still identical across all 8 settings in this batch.
+- nDCG is now valid (`<= 1`) in all runs.
 
 ### 3.2 Ablation outputs
 
-| Experiment                 | recall@5 |  mrr@5 | exact_match | token_f1 | rougeL_f1 | citation_hit_rate |
-| -------------------------- | -------: | -----: | ----------: | -------: | --------: | ----------------: |
-| Hybrid_plus_Rerank         |   0.9333 | 1.0000 |      0.0000 |   0.1036 |    0.1009 |            0.6333 |
-| Hybrid                     |   0.9333 | 1.0000 |      0.0000 |   0.1072 |    0.1012 |            0.5333 |
-| BM25                       |   0.9333 | 1.0000 |      0.0000 |   0.0728 |    0.0649 |            0.4667 |
-| BM25_plus_KG               |   0.9333 | 1.0000 |      0.0000 |   0.1225 |    0.1104 |            0.6667 |
-| BM25_plus_Rerank           |   0.9333 | 1.0000 |      0.0000 |   0.1127 |    0.1064 |            0.6333 |
-| BM25_plus_Rerank_plus_KG   |   0.9333 | 1.0000 |      0.0000 |   0.0963 |    0.0932 |            0.7000 |
-| Hybrid                     |   0.9333 | 1.0000 |      0.0000 |   0.1066 |    0.1016 |            0.7667 |
-| Hybrid_plus_KG             |   0.9333 | 1.0000 |      0.0000 |   0.0930 |    0.0922 |            0.6667 |
-| Hybrid_plus_Rerank         |   0.9333 | 1.0000 |      0.0000 |   0.1147 |    0.1112 |            0.7667 |
-| Hybrid_plus_Rerank_plus_KG |   0.9333 | 1.0000 |      0.0000 |   0.1092 |    0.1038 |            0.6667 |
+| Experiment                 | recall@5 | precision@5 | ndcg@5 | mrr@5 | map@5 | exact_match | token_f1 | rougeL_f1 | citation_hit_rate |
+| -------------------------- | -------: | ----------: | -----: | ----: | ----: | ----------: | -------: | --------: | ----------------: |
+| BM25                       |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |      0.0000 |   0.0000 |    0.0000 |            0.0000 |
+| BM25_plus_KG               |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |      0.0000 |   0.0000 |    0.0000 |            0.0000 |
+| BM25_plus_Rerank           |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |      0.0000 |   0.0000 |    0.0000 |            0.0000 |
+| BM25_plus_Rerank_plus_KG   |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |      0.0000 |   0.0000 |    0.0000 |            0.0000 |
+| Hybrid                     |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |      0.0000 |   0.0000 |    0.0000 |            0.0000 |
+| Hybrid_plus_KG             |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |      0.0000 |   0.0000 |    0.0000 |            0.0000 |
+| Hybrid_plus_Rerank         |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |      0.0000 |   0.0000 |    0.0000 |            0.0000 |
+| Hybrid_plus_Rerank_plus_KG |   1.0000 |      0.2000 | 0.8155 | 0.750 | 0.750 |      0.0000 |   0.0000 |    0.0000 |            0.0000 |
 
 ### 3.3 Metrics Description 
 - Why exact_match is 0.0 across all runs?
@@ -123,33 +131,27 @@ Therefore, a single strong metric does not guarantee top overall rank.
 
 ## 4. Diagnosis
 
-1. Retrieval is no longer the primary bottleneck.
-   Retrieval metrics are consistently high across current runs (recall@5=0.9333, mrr@5=1.0).
-2. Current rank differences come mainly from generation quality.
-   Since retrieval metrics are identical in this batch, `gen_avg` is the key differentiator.
-3. Rerank and KG effects are configuration-dependent.
-   Rerank helps in Hybrid settings (`Hybrid_plus_Rerank` > `Hybrid`), while KG helps some BM25 settings but is not uniformly beneficial.
-4. nDCG is currently >1.
-   Under the current overlap-based relevance logic, repeated relevant matches can inflate DCG relative to idealized counting; interpret nDCG comparatively in this setup.
+1. Retrieval matching logic is fixed for the canonical-ID migration.
+   Law-title normalization plus `eval_friendly_doc_ids` restored non-zero retrieval metrics.
+2. Retrieval metrics remain identical across current 8 settings.
+   This indicates configuration switches are not changing the effective top-5 law-title set in this run.
+3. nDCG validity issue is resolved in the current code path.
+   No run has `nDCG@5 > 1`.
+4. Current generation metrics are all zeros in this batch.
+   This run was retrieval-only and did not produce answer text/citations for generation scoring.
 
 ## 5. Clear Conclusion
 
-- In the latest 8-experiment ablation matrix, `Hybrid_plus_Rerank` ranks first by `gen_avg` (0.2481), followed by `Hybrid` (0.2437).
-- Retrieval alignment is functioning in current runs (non-zero retrieval metrics across all evaluated settings).
-- The strongest practical strategy in this batch is Hybrid retrieval with rerank enabled.
+- The requested retrieval metric recovery is complete: scores are now comparable and non-zero after switching to law-title normalized matching.
+- The 8 runs remain retrieval-identical (`all_retrieval_identical = true`), so this batch does not show retrieval differentiation between BM25/Hybrid/Rerank/KG switches.
+- This batch should be interpreted as a retrieval-alignment validation run, not a generation-quality comparison run.
 
 ## 6. Improvement Recommendations
 
-1. Validate retrieved content quality, not just overlap-based retrieval scores.
-2. Continue spot-checking top retrieved chunks to ensure evidence quality.
-3. Investigate nDCG inflation (>1).
-   Consider deduplicating relevance contributions in DCG or tightening relevance matching.
-4. Improve exact match.
-   Exact match is still 0.0 across runs; tune answer style/normalization to reduce format variance.
-5. Keep notebook retry/skip logic for long ablation jobs.
-   This improves robustness under intermittent provider/network failures.
-6. Expand GT size further.
-   10 questions are better than 2, but a larger set will yield more stable and generalizable rankings.
+1. Expand GT beyond the current small subset before making strategy ranking decisions.
+2. Add a second validation mode with generation enabled to compare `gen_avg` meaningfully.
+3. Add a per-question divergence table to identify where retrieval configurations should differ but currently do not.
+4. Keep canonical chunk IDs for traceability and keep `eval_friendly_doc_ids` only for scoring alignment.
 
 ## 7. Reproducibility Commands
 

@@ -80,5 +80,197 @@
       "Central Provident Fund Act 1953 - Singapore Statutes Online",
       "CareShield Life and Long-Term Care Act 2019 - Singapore Statutes Online"
     ]
+  },
+  {
+    "id": "q011",
+    "question": "What is one enforcement action customs officers may take for suspected duty evasion?",
+    "answer": "Customs officers may investigate and may seize goods, issue penalties, or initiate prosecution under the Act.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online > Investigation powers",
+      "Customs Act 1960 - Singapore Statutes Online > Offences and penalties"
+    ]
+  },
+  {
+    "id": "q012",
+    "question": "Why are import and export declarations important under the Customs Act?",
+    "answer": "Declarations support lawful assessment, control, and collection of duties on dutiable goods.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online > Import and export declarations",
+      "Customs Act 1960 - Singapore Statutes Online > Levying of duty provisions"
+    ]
+  },
+  {
+    "id": "q013",
+    "question": "What is the relationship between dutiable goods and customs duty?",
+    "answer": "Customs duty is generally imposed on goods classified as dutiable under the legal framework and schedules.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online > Dutiable goods definitions",
+      "Customs Act 1960 - Singapore Statutes Online > Levying of duty provisions"
+    ]
+  },
+  {
+    "id": "q014",
+    "question": "What is a broad objective of customs control at checkpoints?",
+    "answer": "A broad objective is to enforce customs laws, regulate cross-border goods movement, and ensure compliance.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online > Administration and enforcement sections"
+    ]
+  },
+  {
+    "id": "q015",
+    "question": "What can happen if a trader submits false customs information?",
+    "answer": "Submitting false customs information may lead to fines, seizure, and possible prosecution under offences provisions.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online > Offences and penalties",
+      "Customs Act 1960 - Singapore Statutes Online > False declaration provisions"
+    ]
+  },
+  {
+    "id": "q016",
+    "question": "What is one core purpose of mandatory CPF contributions?",
+    "answer": "A core purpose is to build long-term savings for retirement and selected social protection needs.",
+    "references": [
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > General framework",
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > Contributions provisions"
+    ]
+  },
+  {
+    "id": "q017",
+    "question": "Who typically has CPF payment responsibilities in employment?",
+    "answer": "Employers are generally required to contribute and eligible employees also contribute according to statutory rules.",
+    "references": [
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > Contributions provisions"
+    ]
+  },
+  {
+    "id": "q018",
+    "question": "Why are CPF contribution rules important for payroll compliance?",
+    "answer": "They set statutory obligations and timelines, helping employers and employees comply with contribution requirements.",
+    "references": [
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > Contributions provisions",
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > Compliance and enforcement"
+    ]
+  },
+  {
+    "id": "q019",
+    "question": "Name one consequence of CPF non-compliance by an employer.",
+    "answer": "CPF non-compliance may trigger enforcement actions such as financial penalties and recovery measures.",
+    "references": [
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > Compliance and enforcement"
+    ]
+  },
+  {
+    "id": "q020",
+    "question": "What does the CPF Act mainly regulate at a high level?",
+    "answer": "It mainly regulates compulsory savings contributions and related obligations within the CPF system.",
+    "references": [
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > Title",
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > General framework"
+    ]
+  },
+  {
+    "id": "q021",
+    "question": "What is the main protection objective of CareShield Life?",
+    "answer": "CareShield Life aims to provide long-term care insurance support for severe disability.",
+    "references": [
+      "CareShield Life and Long-Term Care Act 2019 - Singapore Statutes Online > Scheme purpose"
+    ]
+  },
+  {
+    "id": "q022",
+    "question": "When is a policyholder generally eligible for CareShield Life payouts?",
+    "answer": "Eligibility generally begins when severe disability criteria under the scheme are met.",
+    "references": [
+      "CareShield Life and Long-Term Care Act 2019 - Singapore Statutes Online > Eligibility and payout conditions"
+    ]
+  },
+  {
+    "id": "q023",
+    "question": "Why is clear disability assessment important in CareShield Life?",
+    "answer": "Clear assessment criteria determine whether an insured person qualifies for payout benefits.",
+    "references": [
+      "CareShield Life and Long-Term Care Act 2019 - Singapore Statutes Online > Eligibility and payout conditions",
+      "CareShield Life and Long-Term Care Act 2019 - Singapore Statutes Online > Assessment framework"
+    ]
+  },
+  {
+    "id": "q024",
+    "question": "What does CareShield Life primarily cover compared with general medical treatment costs?",
+    "answer": "It primarily covers severe disability-related long-term care support rather than all general medical expenses.",
+    "references": [
+      "CareShield Life and Long-Term Care Act 2019 - Singapore Statutes Online > Scheme purpose",
+      "CareShield Life and Long-Term Care Act 2019 - Singapore Statutes Online > Eligibility and payout conditions"
+    ]
+  },
+  {
+    "id": "q025",
+    "question": "How do Customs Act offences provisions support enforcement outcomes?",
+    "answer": "They provide legal consequences such as fines, seizures, and prosecution to deter non-compliance.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online > Offences and penalties"
+    ]
+  },
+  {
+    "id": "q026",
+    "question": "What common compliance theme is shared by the Customs Act and the CPF Act?",
+    "answer": "Both impose statutory obligations and provide enforcement mechanisms when parties fail to comply.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online > Offences and penalties",
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > Compliance and enforcement"
+    ]
+  },
+  {
+    "id": "q027",
+    "question": "Which two statutes are most directly tied to financial obligations in this dataset?",
+    "answer": "The Customs Act 1960 and the Central Provident Fund Act 1953 are most directly tied to financial obligations.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online",
+      "Central Provident Fund Act 1953 - Singapore Statutes Online"
+    ]
+  },
+  {
+    "id": "q028",
+    "question": "What distinguishes CareShield Life from the Customs Act in policy focus?",
+    "answer": "CareShield Life focuses on long-term care insurance for severe disability, while the Customs Act focuses on trade controls and duty enforcement.",
+    "references": [
+      "CareShield Life and Long-Term Care Act 2019 - Singapore Statutes Online > Scheme purpose",
+      "Customs Act 1960 - Singapore Statutes Online > Administration and enforcement sections"
+    ]
+  },
+  {
+    "id": "q029",
+    "question": "What broad legal role do these statutes play together in Singapore?",
+    "answer": "Together they define mandatory duties, savings obligations, and long-term care protections across key public policy areas.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online",
+      "Central Provident Fund Act 1953 - Singapore Statutes Online",
+      "CareShield Life and Long-Term Care Act 2019 - Singapore Statutes Online"
+    ]
+  },
+  {
+    "id": "q030",
+    "question": "If a question asks about severe disability payout triggers, which statute should be retrieved first?",
+    "answer": "The CareShield Life and Long-Term Care Act 2019 should be retrieved first.",
+    "references": [
+      "CareShield Life and Long-Term Care Act 2019 - Singapore Statutes Online > Eligibility and payout conditions"
+    ]
+  },
+  {
+    "id": "q031",
+    "question": "If a question asks about duty collection and declarations, which statute should be retrieved first?",
+    "answer": "The Customs Act 1960 should be retrieved first.",
+    "references": [
+      "Customs Act 1960 - Singapore Statutes Online > Levying of duty provisions",
+      "Customs Act 1960 - Singapore Statutes Online > Import and export declarations"
+    ]
+  },
+  {
+    "id": "q032",
+    "question": "If a question asks about mandatory retirement savings obligations, which statute should be retrieved first?",
+    "answer": "The Central Provident Fund Act 1953 should be retrieved first.",
+    "references": [
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > Contributions provisions",
+      "Central Provident Fund Act 1953 - Singapore Statutes Online > General framework"
+    ]
   }
 ]

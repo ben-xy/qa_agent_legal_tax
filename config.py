@@ -9,8 +9,9 @@ from pathlib import Path
 from typing import Dict, Any
 from dotenv import load_dotenv
 
-# Load environment variables and prefer .env values in notebook/script workflows
-load_dotenv(override=True)
+# Load environment variables from .env as fallback only.
+# override=False ensures subprocess env vars (e.g. ablation runner overrides) take precedence over .env.
+load_dotenv(override=False)
 
 def as_bool(value, default: bool = False) -> bool:
     """
