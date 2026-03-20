@@ -59,7 +59,7 @@ class Config:
 
     # Gemini Configuration
     GEMINI_LLM_MODEL = os.getenv("GEMINI_LLM_MODEL", "gemini-2.5-flash")
-    GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
+    GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-2-preview")
     GEMINI_API_VERSION = os.getenv("GEMINI_API_VERSION")
     
     # Embedding Configuration

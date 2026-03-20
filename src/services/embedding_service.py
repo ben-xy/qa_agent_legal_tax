@@ -9,6 +9,18 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
+GEMINI_EMBEDDING_MODEL_ALIASES = {
+    'gemini embedding 2': 'gemini-embedding-2-preview',
+    'gemini-embedding-2': 'gemini-embedding-2-preview',
+    'gemini embedding 2 preview': 'gemini-embedding-2-preview',
+    'gemini-embedding-2-preview': 'gemini-embedding-2-preview',
+    'gemini embedding 1': 'gemini-embedding-001',
+    'gemini-embedding-1': 'gemini-embedding-001',
+    'gemini embedding 001': 'gemini-embedding-001',
+    'gemini-embedding-001': 'gemini-embedding-001',
+}
+
+
 class EmbeddingService:
     """Service for generating embeddings using OpenAI or Gemini API."""
     
@@ -58,7 +70,7 @@ class EmbeddingService:
                     raise ValueError("GOOGLE_API_KEY is required when EMBEDDING_PROVIDER=gemini")
 
                 self._gemini_types = genai_types
-                configured_model = self._config_get('gemini_embedding_model', 'gemini-embedding-001')
+                configured_model = self._config_get('gemini_embedding_model', 'gemini-embedding-2-preview')
                 configured_api_version = self._config_get('gemini_api_version')
 
                 self.client, self.model, self._gemini_api_version = self._resolve_gemini_model(
@@ -85,7 +97,7 @@ class EmbeddingService:
         model_name = (model_name or '').strip()
         if model_name.startswith('models/'):
             model_name = model_name[len('models/'):]
-        return model_name
+        return GEMINI_EMBEDDING_MODEL_ALIASES.get(model_name.lower(), model_name)
 
     def _unique_values(self, values: List[Optional[str]]) -> List[Optional[str]]:
         seen = set()
@@ -121,8 +133,8 @@ class EmbeddingService:
     ) -> Tuple[Any, str, Optional[str]]:
         candidate_models = self._unique_values([
             self._normalize_gemini_model_name(configured_model),
-            'gemini-embedding-001',
             'gemini-embedding-2-preview',
+            'gemini-embedding-001',
         ])
         candidate_versions = self._unique_values([
             configured_api_version,

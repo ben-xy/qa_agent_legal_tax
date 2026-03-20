@@ -116,7 +116,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 LLM_PROVIDER=gemini
 EMBEDDING_PROVIDER=gemini
 GOOGLE_API_KEY=your_google_api_key_here
-GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+GEMINI_EMBEDDING_MODEL=gemini-embedding-2-preview
 ```
 
 5. 验证并运行：
@@ -203,7 +203,7 @@ print(f"Confidence: {response.confidence_score:.1%}")
 - `LLM_MODEL`：Gemini 对话模型（默认 `emini-2.5-flash`）
 - `GEMINI_LLM_MODEL`：Gemini 对话模型（默认 `gemini-2.5-flash`）
 - `EMBEDDING_MODEL`：OpenAI embedding 模型（默认 `text-embedding-3-small`）
-- `GEMINI_EMBEDDING_MODEL`：Gemini embedding 模型（默认 `models/text-embedding-004`）
+- `GEMINI_EMBEDDING_MODEL`：Gemini embedding 模型（默认 `gemini-embedding-2-preview`）
 - `RETRIEVAL_TOP_K`：检索文档数量（默认 5）
 - `LOG_LEVEL`：日志等级（DEBUG、INFO、WARNING、ERROR）
 
