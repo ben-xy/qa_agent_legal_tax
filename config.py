@@ -61,6 +61,12 @@ class Config:
     GEMINI_LLM_MODEL = os.getenv("GEMINI_LLM_MODEL", "gemini-2.5-flash")
     GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-2-preview")
     GEMINI_API_VERSION = os.getenv("GEMINI_API_VERSION")
+    GEMINI_EMBED_RETRY_MAX_ATTEMPTS = int(os.getenv("GEMINI_EMBED_RETRY_MAX_ATTEMPTS", "10"))
+    GEMINI_EMBED_RETRY_BASE_SEC = float(os.getenv("GEMINI_EMBED_RETRY_BASE_SEC", "1.0"))
+    GEMINI_EMBED_RETRY_MAX_BACKOFF_SEC = float(os.getenv("GEMINI_EMBED_RETRY_MAX_BACKOFF_SEC", "60.0"))
+    GEMINI_ENABLE_MODEL_FAILOVER = as_bool(os.getenv("GEMINI_ENABLE_MODEL_FAILOVER", "false"))
+    GEMINI_EMBED_BACKOFF_ONLY_FOR_TPM = as_bool(os.getenv("GEMINI_EMBED_BACKOFF_ONLY_FOR_TPM", "false"))
+    GEMINI_EMBED_RETRY_NON_TPM_WAIT_SEC = float(os.getenv("GEMINI_EMBED_RETRY_NON_TPM_WAIT_SEC", "1.0"))
     
     # Embedding Configuration
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
