@@ -66,6 +66,7 @@ qa_agent_legal_tax/
 │   ├── metrics_eval_report.md
 │   ├── chunking_strategies_guide.md
 │   ├── rag_strategies_guide.md
+│   ├── knowledge_graph_guide.md
 ├── notebooks/                  # Notebook-based Web UI
 ├── tests/                      # Unit tests
 ├── config.py                   # Configuration management
@@ -81,6 +82,7 @@ The following documents are maintained under `docs/`:
 - `docs/metrics_eval_report.md`: Explains retrieval/generation metric definitions, summarizes latest experiment results, and provides diagnosis plus improvement recommendations.
 - `docs/chunking_strategies_guide.md`: Summarizes the active chunking strategies, trade-offs, and recommended usage scenarios in this project.
 - `docs/rag_strategies_guide.md`: Documents current RAG strategy variants (hybrid, rerank, KG), with pros/cons and strategy selection guidance.
+- `docs/knowledge_graph_guide.md`: Details KG implementation (entity extraction, graph build, query expansion, scoring boost), configuration knobs, and observed behavior in evaluation.
 
 ## Installation & Quick Start
 

@@ -3,6 +3,8 @@
 ## 1. Scope
 This guide documents the currently implemented RAG strategies in this project, how each strategy works, its strengths and weaknesses, and when to use it.
 
+For implementation details of the Knowledge Graph path specifically, see: `docs/knowledge_graph_guide.md`.
+
 Code basis:
 - `src/retrievers/hybrid_retriever.py`
 - `src/retrievers/cohere_reranker.py`
