@@ -3,10 +3,23 @@ Embedding service for generating document and query embeddings.
 """
 
 import logging
+import time
 from typing import Any, List, Optional, Tuple
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+GEMINI_EMBEDDING_MODEL_ALIASES = {
+    'gemini embedding 2': 'gemini-embedding-2-preview',
+    'gemini-embedding-2': 'gemini-embedding-2-preview',
+    'gemini embedding 2 preview': 'gemini-embedding-2-preview',
+    'gemini-embedding-2-preview': 'gemini-embedding-2-preview',
+    'gemini embedding 1': 'gemini-embedding-001',
+    'gemini-embedding-1': 'gemini-embedding-001',
+    'gemini embedding 001': 'gemini-embedding-001',
+    'gemini-embedding-001': 'gemini-embedding-001',
+}
 
 
 class EmbeddingService:
@@ -26,12 +39,29 @@ class EmbeddingService:
         self.client = None
         self._gemini_types = None
         self._gemini_api_version = None
+        self._gemini_retry_max_attempts = int(self._config_get('gemini_embed_retry_max_attempts', 10))
+        self._gemini_retry_base_sec = float(self._config_get('gemini_embed_retry_base_sec', 1.0))
+        self._gemini_retry_max_backoff_sec = float(self._config_get('gemini_embed_retry_max_backoff_sec', 60.0))
+        self._gemini_backoff_only_for_tpm = self._as_bool(self._config_get('gemini_embed_backoff_only_for_tpm', False))
+        self._gemini_retry_non_tpm_wait_sec = float(self._config_get('gemini_embed_retry_non_tpm_wait_sec', 1.0))
+        self._gemini_enable_model_failover = self._as_bool(self._config_get('gemini_enable_model_failover', False))
+        self._gemini_failover_models = [
+            'gemini-embedding-2-preview',
+            'gemini-embedding-001',
+        ]
 
         self._init_client()
 
     def _config_get(self, key: str, default: Any = None) -> Any:
         """Get config value with lowercase + uppercase compatibility."""
         return self.config.get(key, self.config.get(key.upper(), default))
+
+    def _as_bool(self, value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return False
+        return str(value).strip().lower() in {'1', 'true', 'yes', 'y', 'on'}
 
     def _init_client(self) -> None:
         """Initialize provider-specific embedding client."""
@@ -58,7 +88,7 @@ class EmbeddingService:
                     raise ValueError("GOOGLE_API_KEY is required when EMBEDDING_PROVIDER=gemini")
 
                 self._gemini_types = genai_types
-                configured_model = self._config_get('gemini_embedding_model', 'gemini-embedding-001')
+                configured_model = self._config_get('gemini_embedding_model', 'gemini-embedding-2-preview')
                 configured_api_version = self._config_get('gemini_api_version')
 
                 self.client, self.model, self._gemini_api_version = self._resolve_gemini_model(
@@ -85,7 +115,7 @@ class EmbeddingService:
         model_name = (model_name or '').strip()
         if model_name.startswith('models/'):
             model_name = model_name[len('models/'):]
-        return model_name
+        return GEMINI_EMBEDDING_MODEL_ALIASES.get(model_name.lower(), model_name)
 
     def _unique_values(self, values: List[Optional[str]]) -> List[Optional[str]]:
         seen = set()
@@ -121,8 +151,8 @@ class EmbeddingService:
     ) -> Tuple[Any, str, Optional[str]]:
         candidate_models = self._unique_values([
             self._normalize_gemini_model_name(configured_model),
-            'gemini-embedding-001',
             'gemini-embedding-2-preview',
+            'gemini-embedding-001',
         ])
         candidate_versions = self._unique_values([
             configured_api_version,
@@ -149,6 +179,102 @@ class EmbeddingService:
             f'Tried models {candidate_models} across API versions {candidate_versions}. '
             f'Sample errors: {error_summary}'
         )
+
+    def _is_gemini_rate_limited(self, exc: Exception) -> bool:
+        text = str(exc).lower()
+        return (
+            'resource_exhausted' in text
+            or 'quota' in text
+            or 'rate limit' in text
+            or '429' in text
+            or 'tpm' in text
+        )
+
+    def _is_tpm_rate_limit(self, exc: Exception) -> bool:
+        text = str(exc).lower()
+        return (
+            'tpm' in text
+            or 'tokens per minute' in text
+            or 'token per minute' in text
+            or 'per-minute token' in text
+        )
+
+    def _switch_gemini_model(self) -> bool:
+        if not self._gemini_enable_model_failover:
+            return False
+
+        models = self._unique_values([
+            self._normalize_gemini_model_name(self.model),
+            *self._gemini_failover_models,
+        ])
+        models = [m for m in models if m]
+        if len(models) <= 1:
+            return False
+
+        current = self._normalize_gemini_model_name(self.model)
+        try:
+            idx = models.index(current)
+        except ValueError:
+            idx = -1
+
+        self.model = models[(idx + 1) % len(models)]
+        return True
+
+    def _run_gemini_with_retry(self, op_name: str, fn):
+        max_attempts = max(1, self._gemini_retry_max_attempts)
+        base = max(0.1, self._gemini_retry_base_sec)
+        max_backoff = max(base, self._gemini_retry_max_backoff_sec)
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return fn()
+            except Exception as exc:
+                if not self._is_gemini_rate_limited(exc):
+                    raise
+
+                if attempt >= max_attempts:
+                    logger.error(
+                        "%s failed after %s attempts due to Gemini rate/quota limits. Last error: %s",
+                        op_name,
+                        max_attempts,
+                        exc,
+                    )
+                    raise
+
+                prev_model = self.model
+                switched = self._switch_gemini_model()
+                is_tpm_error = self._is_tpm_rate_limit(exc)
+                if self._gemini_backoff_only_for_tpm and not is_tpm_error:
+                    backoff_sec = max(0.0, self._gemini_retry_non_tpm_wait_sec)
+                    wait_mode = 'short-wait'
+                else:
+                    backoff_sec = min(base * (2 ** (attempt - 1)), max_backoff)
+                    wait_mode = 'exp-backoff'
+
+                if switched:
+                    logger.warning(
+                        "%s hit Gemini rate/quota limit (attempt %s/%s, mode=%s, tpm=%s). Switching model %s -> %s; sleeping %.1fs before retry.",
+                        op_name,
+                        attempt,
+                        max_attempts,
+                        wait_mode,
+                        is_tpm_error,
+                        prev_model,
+                        self.model,
+                        backoff_sec,
+                    )
+                else:
+                    logger.warning(
+                        "%s hit Gemini rate/quota limit (attempt %s/%s, mode=%s, tpm=%s). Sleeping %.1fs before retry.",
+                        op_name,
+                        attempt,
+                        max_attempts,
+                        wait_mode,
+                        is_tpm_error,
+                        backoff_sec,
+                    )
+
+                time.sleep(backoff_sec)
     
     def embed(self, text: str) -> np.ndarray:
         """
@@ -235,26 +361,32 @@ class EmbeddingService:
 
     def _embed_gemini(self, text: str, task_type: Optional[str] = None) -> List[float]:
         """Generate embedding using Gemini API."""
-        config = self._gemini_types.EmbedContentConfig(
-            output_dimensionality=self.dimension,
-            task_type=task_type,
-        )
-        response = self.client.models.embed_content(
-            model=self.model,
-            contents=text,
-            config=config,
-        )
+        def _op():
+            config = self._gemini_types.EmbedContentConfig(
+                output_dimensionality=self.dimension,
+                task_type=task_type,
+            )
+            return self.client.models.embed_content(
+                model=self.model,
+                contents=text,
+                config=config,
+            )
+
+        response = self._run_gemini_with_retry("Single embedding", _op)
         return response.embeddings[0].values
 
     def _embed_gemini_batch(self, texts: List[str], task_type: Optional[str] = None) -> List[List[float]]:
         """Generate embeddings for a batch of texts using Gemini API."""
-        config = self._gemini_types.EmbedContentConfig(
-            output_dimensionality=self.dimension,
-            task_type=task_type,
-        )
-        response = self.client.models.embed_content(
-            model=self.model,
-            contents=texts,
-            config=config,
-        )
+        def _op():
+            config = self._gemini_types.EmbedContentConfig(
+                output_dimensionality=self.dimension,
+                task_type=task_type,
+            )
+            return self.client.models.embed_content(
+                model=self.model,
+                contents=texts,
+                config=config,
+            )
+
+        response = self._run_gemini_with_retry("Batch embedding", _op)
         return [item.values for item in response.embeddings]

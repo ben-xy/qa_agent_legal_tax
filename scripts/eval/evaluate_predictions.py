@@ -31,6 +31,46 @@ def normalize_text(s: str) -> str:
     return s
 
 
+def extract_law_title(raw: str) -> str:
+    if raw is None:
+        return ""
+
+    text = " ".join(str(raw).replace("\n", " ").split())
+    if not text:
+        return ""
+
+    candidates = [text]
+    if "::" in text:
+        candidates.extend([part.strip() for part in text.split("::") if part.strip()])
+
+    for token in (" - Singapore Statutes Online", " > ", "|"):
+        extra = []
+        for c in candidates:
+            if token in c:
+                extra.append(c.split(token)[0].strip())
+        candidates.extend([e for e in extra if e])
+
+    law_pattern = re.compile(
+        r"([A-Za-z][A-Za-z0-9'()\-/\s]*?\b(?:Act|Regulations?|Rules?|Code|Order|Ordinance|Constitution|Charter)\b(?:\s*\d{4})?)",
+        re.IGNORECASE,
+    )
+
+    best = ""
+    for candidate in candidates:
+        match = law_pattern.search(candidate)
+        if match:
+            current = " ".join(match.group(1).split())
+            if len(current) > len(best):
+                best = current
+    if best:
+        return best
+
+    fallback = candidates[0]
+    fallback = re.sub(r"^doc[_-]?\d+\s*[:\-]*\s*", "", fallback, flags=re.IGNORECASE)
+    fallback = fallback.split("::chunk=")[0].strip()
+    return fallback
+
+
 def exact_match(pred: str, gold: str) -> float:
     return 1.0 if normalize_text(pred) == normalize_text(gold) else 0.0
 
@@ -107,32 +147,49 @@ def _normalize_items(values: Sequence[str]) -> List[str]:
     return items
 
 
+def _normalize_law_items(values: Sequence[str]) -> List[str]:
+    items: List[str] = []
+    for value in values:
+        if value is None:
+            continue
+        title = extract_law_title(str(value))
+        text = normalize_text(title)
+        if text:
+            items.append(text)
+    return items
+
+
 def get_gold_targets(row: Dict) -> List[str]:
     for key in ("gold_doc_ids", "references", "gold_citations"):
         values = row.get(key, [])
         if isinstance(values, list) and values:
-            return _normalize_items(values)
+            return _normalize_law_items(values)
     return []
 
 
 def get_pred_targets(row: Dict, k: int) -> List[str]:
-    for key in ("retrieved_doc_ids", "pred_citations"):
+    for key in ("eval_friendly_doc_ids", "retrieved_doc_ids", "pred_citations"):
         values = row.get(key, [])
         if isinstance(values, list) and values:
-            return _normalize_items(values[:k])
+            return _normalize_law_items(values[:k])
     return []
 
 
 def _target_match(pred_item: str, gold_item: str) -> bool:
-    return (
-        pred_item == gold_item
-        or pred_item in gold_item
-        or gold_item in pred_item
-    )
+    return pred_item == gold_item
 
 
 def _is_relevant(pred_item: str, gold_docs: List[str]) -> bool:
     return any(_target_match(pred_item, gold_item) for gold_item in gold_docs)
+
+
+def _first_unmatched_gold_idx(pred_item: str, gold_docs: List[str], used_idx: set) -> int | None:
+    for idx, gold_item in enumerate(gold_docs):
+        if idx in used_idx:
+            continue
+        if _target_match(pred_item, gold_item):
+            return idx
+    return None
 
 
 def _matched_gold_count(pred_docs: List[str], gold_docs: List[str]) -> int:
@@ -153,7 +210,13 @@ def recall_at_k(pred_docs: List[str], gold_docs: List[str]) -> float:
 def precision_at_k(pred_docs: List[str], gold_docs: List[str], k: int) -> float:
     if k <= 0:
         return 0.0
-    hits = sum(1 for doc in pred_docs[:k] if _is_relevant(doc, gold_docs))
+    hits = 0
+    used_idx = set()
+    for doc in pred_docs[:k]:
+        idx = _first_unmatched_gold_idx(doc, gold_docs, used_idx)
+        if idx is not None:
+            hits += 1
+            used_idx.add(idx)
     return hits / k
 
 
@@ -170,11 +233,12 @@ def average_precision_at_k(pred_docs: List[str], gold_docs: List[str], k: int) -
 
     hits = 0
     total = 0.0
-    seen = set()
+    used_idx = set()
     for rank, doc_id in enumerate(pred_docs[:k], start=1):
-        if _is_relevant(doc_id, gold_docs) and doc_id not in seen:
+        idx = _first_unmatched_gold_idx(doc_id, gold_docs, used_idx)
+        if idx is not None:
             hits += 1
-            seen.add(doc_id)
+            used_idx.add(idx)
             total += hits / rank
     return total / len(gold_docs)
 
@@ -184,8 +248,11 @@ def ndcg_at_k(pred_docs: List[str], gold_docs: List[str], k: int) -> float:
         return 0.0
 
     dcg = 0.0
+    used_idx = set()
     for rank, doc_id in enumerate(pred_docs[:k], start=1):
-        if _is_relevant(doc_id, gold_docs):
+        idx = _first_unmatched_gold_idx(doc_id, gold_docs, used_idx)
+        if idx is not None:
+            used_idx.add(idx)
             dcg += 1.0 / math.log2(rank + 1)
 
     ideal_hits = min(len(gold_docs), k)

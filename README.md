@@ -116,7 +116,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 LLM_PROVIDER=gemini
 EMBEDDING_PROVIDER=gemini
 GOOGLE_API_KEY=your_google_api_key_here
-GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+GEMINI_EMBEDDING_MODEL=gemini-embedding-2-preview
 ```
 
 5. **Verify and run**
@@ -206,7 +206,7 @@ Set environment variables in .env (or edit `config.py`):
 - `LLM_MODEL`: Gemini chat model (default: `emini-2.5-flash`)
 - `GEMINI_LLM_MODEL`: Gemini chat model (default: `gemini-2.5-flash`)
 - `EMBEDDING_MODEL`: OpenAI embedding model (default: `text-embedding-3-small`)
-- `GEMINI_EMBEDDING_MODEL`: Gemini embedding model (default: `models/text-embedding-004`)
+- `GEMINI_EMBEDDING_MODEL`: Gemini embedding model (default: `gemini-embedding-2-preview`)
 - `RETRIEVAL_TOP_K`: Number of documents to retrieve (default: 5)
 - `LOG_LEVEL`: Logging level (DEBUG, INFO, WARNING, ERROR)
 

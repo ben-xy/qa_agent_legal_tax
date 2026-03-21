@@ -9,8 +9,9 @@ from pathlib import Path
 from typing import Dict, Any
 from dotenv import load_dotenv
 
-# Load environment variables and prefer .env values in notebook/script workflows
-load_dotenv(override=True)
+# Load environment variables from .env as fallback only.
+# override=False ensures subprocess env vars (e.g. ablation runner overrides) take precedence over .env.
+load_dotenv(override=False)
 
 def as_bool(value, default: bool = False) -> bool:
     """
@@ -58,8 +59,14 @@ class Config:
 
     # Gemini Configuration
     GEMINI_LLM_MODEL = os.getenv("GEMINI_LLM_MODEL", "gemini-2.5-flash")
-    GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
+    GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-2-preview")
     GEMINI_API_VERSION = os.getenv("GEMINI_API_VERSION")
+    GEMINI_EMBED_RETRY_MAX_ATTEMPTS = int(os.getenv("GEMINI_EMBED_RETRY_MAX_ATTEMPTS", "10"))
+    GEMINI_EMBED_RETRY_BASE_SEC = float(os.getenv("GEMINI_EMBED_RETRY_BASE_SEC", "1.0"))
+    GEMINI_EMBED_RETRY_MAX_BACKOFF_SEC = float(os.getenv("GEMINI_EMBED_RETRY_MAX_BACKOFF_SEC", "60.0"))
+    GEMINI_ENABLE_MODEL_FAILOVER = as_bool(os.getenv("GEMINI_ENABLE_MODEL_FAILOVER", "false"))
+    GEMINI_EMBED_BACKOFF_ONLY_FOR_TPM = as_bool(os.getenv("GEMINI_EMBED_BACKOFF_ONLY_FOR_TPM", "false"))
+    GEMINI_EMBED_RETRY_NON_TPM_WAIT_SEC = float(os.getenv("GEMINI_EMBED_RETRY_NON_TPM_WAIT_SEC", "1.0"))
     
     # Embedding Configuration
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")

@@ -1,8 +1,10 @@
 import os
 import sys
 import json
+import re
 import inspect
 import importlib
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
@@ -211,17 +213,116 @@ def call_agent(agent: Any, question: str) -> Any:
 
 def normalize_response(resp: Any) -> Dict[str, Any]:
     """
-    Convert agent response into unified schema:
+        Convert agent response into unified schema:
     {
       pred_answer: str,
       retrieved_doc_ids: List[str],
+            eval_friendly_doc_ids: List[str],
       pred_citations: List[str]
     }
     """
+
+    def _normalize_text(v: Any) -> str:
+        if v is None:
+            return ""
+        return " ".join(str(v).strip().split())
+
+    def _stable_chunk_id(doc: Dict[str, Any]) -> str:
+        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+
+        source = (
+            doc.get("source")
+            or metadata.get("source")
+            or metadata.get("Law")
+            or metadata.get("title")
+            or doc.get("_source_file")
+            or "unknown"
+        )
+
+        # Prefer explicit chunk location hints when available.
+        chunk_part = (
+            doc.get("chunk_id")
+            or doc.get("chunk_index")
+            or metadata.get("chunk_id")
+            or metadata.get("chunk_index")
+            or metadata.get("index")
+            or metadata.get("page")
+            or metadata.get("start")
+            or metadata.get("line_start")
+            or "na"
+        )
+
+        text = (
+            doc.get("content")
+            or doc.get("page_content")
+            or doc.get("text")
+            or doc.get("chunk")
+            or ""
+        )
+        digest = hashlib.sha1(_normalize_text(text).encode("utf-8")).hexdigest()[:12]
+        return f"{source}::chunk={chunk_part}::h={digest}"
+
+    def _extract_law_title(raw: Any) -> str:
+        if raw is None:
+            return ""
+
+        text = " ".join(str(raw).replace("\n", " ").split())
+        if not text:
+            return ""
+
+        candidates = [text]
+        if "::" in text:
+            candidates.extend([part.strip() for part in text.split("::") if part.strip()])
+
+        for token in (" - Singapore Statutes Online", " > ", "|"):
+            extra = []
+            for c in candidates:
+                if token in c:
+                    extra.append(c.split(token)[0].strip())
+            candidates.extend([e for e in extra if e])
+
+        law_pattern = re.compile(
+            r"([A-Za-z][A-Za-z0-9'()\-/\s]*?\b(?:Act|Regulations?|Rules?|Code|Order|Ordinance|Constitution|Charter)\b(?:\s*\d{4})?)",
+            re.IGNORECASE,
+        )
+
+        best = ""
+        for candidate in candidates:
+            match = law_pattern.search(candidate)
+            if match:
+                current = " ".join(match.group(1).split())
+                if len(current) > len(best):
+                    best = current
+        if best:
+            return best
+
+        fallback = candidates[0]
+        fallback = re.sub(r"^doc[_-]?\d+\s*[:\-]*\s*", "", fallback, flags=re.IGNORECASE)
+        return " ".join(fallback.split())
+
+    def _canonical_doc_id(doc: Dict[str, Any]) -> str:
+        explicit = doc.get("_doc_id") or doc.get("id") or doc.get("doc_id")
+        chunk_id = _stable_chunk_id(doc)
+
+        if explicit is None:
+            return chunk_id
+
+        explicit_text = str(explicit).strip()
+        if not explicit_text:
+            return chunk_id
+
+        # Keep already-granular IDs; otherwise append chunk/hash to avoid coarse law-level collisions.
+        coarse_markers = ("::chunk=", "#chunk", "chunk=", "@chunk", ":chunk")
+        if any(marker in explicit_text.lower() for marker in coarse_markers):
+            return explicit_text
+
+        return f"{explicit_text}::{chunk_id}"
+
     if isinstance(resp, str):
         return {
             "pred_answer": resp,
             "retrieved_doc_ids": [],
+            "eval_friendly_doc_ids": [],
             "pred_citations": [],
         }
 
@@ -241,15 +342,28 @@ def normalize_response(resp: Any) -> Dict[str, Any]:
         )
 
         retrieved_doc_ids: List[str] = []
+        eval_friendly_doc_ids: List[str] = []
         for c in contexts:
             if isinstance(c, dict):
-                doc_id = c.get("_doc_id") or c.get("id") or c.get("doc_id")
+                doc_id = _canonical_doc_id(c)
+                metadata = c.get("metadata") if isinstance(c.get("metadata"), dict) else {}
+                eval_title = (
+                    _extract_law_title(c.get("law_title"))
+                    or _extract_law_title(c.get("source"))
+                    or _extract_law_title(metadata.get("Law"))
+                    or _extract_law_title(metadata.get("title"))
+                    or _extract_law_title(doc_id)
+                )
             elif isinstance(c, str):
                 doc_id = c.strip()
+                eval_title = _extract_law_title(c)
             else:
                 doc_id = getattr(c, "_doc_id", None) or getattr(c, "id", None) or getattr(c, "doc_id", None)
+                eval_title = _extract_law_title(doc_id)
             if doc_id is not None:
                 retrieved_doc_ids.append(str(doc_id))
+            if eval_title:
+                eval_friendly_doc_ids.append(eval_title)
 
         if citations and isinstance(citations, list) and not isinstance(citations[0], str):
             citations = [
@@ -264,6 +378,7 @@ def normalize_response(resp: Any) -> Dict[str, Any]:
         return {
             "pred_answer": str(answer),
             "retrieved_doc_ids": retrieved_doc_ids,
+            "eval_friendly_doc_ids": eval_friendly_doc_ids,
             "pred_citations": citations if isinstance(citations, list) else [],
         }
 
@@ -273,15 +388,29 @@ def normalize_response(resp: Any) -> Dict[str, Any]:
         contexts = resp.get("contexts") or resp.get("documents") or resp.get("retrieved_docs") or []
 
         retrieved_doc_ids: List[str] = []
+        eval_friendly_doc_ids: List[str] = []
         for c in contexts:
             if isinstance(c, dict):
-                doc_id = c.get("_doc_id") or c.get("id") or c.get("doc_id")
+                doc_id = _canonical_doc_id(c)
+                metadata = c.get("metadata") if isinstance(c.get("metadata"), dict) else {}
+                eval_title = (
+                    _extract_law_title(c.get("law_title"))
+                    or _extract_law_title(c.get("source"))
+                    or _extract_law_title(metadata.get("Law"))
+                    or _extract_law_title(metadata.get("title"))
+                    or _extract_law_title(doc_id)
+                )
                 if doc_id is not None:
                     retrieved_doc_ids.append(str(doc_id))
+                if eval_title:
+                    eval_friendly_doc_ids.append(eval_title)
             elif isinstance(c, str):
                 text = c.strip()
                 if text:
                     retrieved_doc_ids.append(text)
+                    eval_title = _extract_law_title(text)
+                    if eval_title:
+                        eval_friendly_doc_ids.append(eval_title)
 
         if citations and isinstance(citations, list) and isinstance(citations[0], dict):
             citations = [x.get("text") or x.get("citation") or str(x) for x in citations]
@@ -289,12 +418,14 @@ def normalize_response(resp: Any) -> Dict[str, Any]:
         return {
             "pred_answer": answer,
             "retrieved_doc_ids": retrieved_doc_ids,
+            "eval_friendly_doc_ids": eval_friendly_doc_ids,
             "pred_citations": citations if isinstance(citations, list) else [],
         }
 
     return {
         "pred_answer": str(resp),
         "retrieved_doc_ids": [],
+        "eval_friendly_doc_ids": [],
         "pred_citations": [],
     }
 
@@ -305,6 +436,34 @@ def _to_bool(v):
     if v is None:
         return False
     return str(v).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def build_retrieval_only_prediction(agent: Any, question: str, top_k: int) -> Dict[str, Any]:
+    retriever = getattr(agent, "retriever", None)
+    if retriever is None:
+        raise RuntimeError("retrieval-only mode requires agent.retriever, but it was not found.")
+
+    # Retrieval-only benchmarking should not invoke external rerank APIs.
+    if hasattr(retriever, "enable_rerank"):
+        try:
+            retriever.enable_rerank = False
+        except Exception:
+            pass
+
+    query_type = "general"
+    try:
+        contexts = retriever.retrieve(query=question, top_k=top_k, query_type=query_type)
+    except TypeError:
+        try:
+            contexts = retriever.retrieve(question, top_k=top_k, query_type=query_type)
+        except TypeError:
+            contexts = retriever.retrieve(question)
+
+    return {
+        "answer": "",
+        "documents": contexts,
+        "citations": [],
+    }
 
 
 def _write_run_snapshot(args, pred_out_path: Path) -> Path:
@@ -375,6 +534,12 @@ def main():
     parser.add_argument("--top-k", type=int, default=5, help="Top-K docs used for answering/eval snapshot")
     parser.add_argument("--model", type=str, default=None, help="LLM model name for snapshot only")
     parser.add_argument("--rerank-model", type=str, default=None, help="Rerank model name for snapshot only")
+    parser.add_argument(
+        "--retrieval-only",
+        choices=["true", "false"],
+        default="false",
+        help="If true, skip LLM generation and run retrieval-only predictions.",
+    )
     args = parser.parse_args()
 
     os.environ["ENABLE_RERANK"] = args.enable_rerank
@@ -384,12 +549,16 @@ def main():
 
     gt_rows = read_jsonl(gt_path)
     agent = build_agent()
+    retrieval_only = _to_bool(args.retrieval_only)
 
     preds: List[Dict[str, Any]] = []
     for row in gt_rows:
         qid = row["id"]
         question = row["question"]
-        resp = call_agent(agent, question)
+        if retrieval_only:
+            resp = build_retrieval_only_prediction(agent, question, args.top_k)
+        else:
+            resp = call_agent(agent, question)
         norm = normalize_response(resp)
 
         preds.append(
@@ -397,6 +566,7 @@ def main():
                 "id": qid,
                 "pred_answer": norm["pred_answer"],
                 "retrieved_doc_ids": norm["retrieved_doc_ids"],
+                "eval_friendly_doc_ids": norm["eval_friendly_doc_ids"],
                 "pred_citations": norm["pred_citations"],
             }
         )
