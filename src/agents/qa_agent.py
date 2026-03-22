@@ -104,9 +104,11 @@ class QAAgent:
                 query_type=query_type
             )
             logger.info(f"Answer generated (length: {len(answer)} chars)")
+            logger.debug("Answer content: %s", answer)
             
             # Extract citations
             citations = self._extract_citations(answer)
+            logger.info(f"Extracted {len(citations)} citations from answer")
 
             # Calculate grounded confidence
             confidence, confidence_breakdown = self._calculate_confidence(
@@ -118,7 +120,8 @@ class QAAgent:
             
             # Get sources
             sources = [self._extract_source_label(doc) for doc in documents]
-            
+            logger.info(f"Retrieved sources: {sources}")
+
             processing_time = time.time() - start_time
             
             # Create response

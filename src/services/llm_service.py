@@ -141,6 +141,7 @@ class LLMService:
                 company_info=company_info
             )
             
+            logger.info(f"LLM input | context_docs={len(context)} | prompt_len={len(user_message)} chars")
             logger.debug(f"System prompt: {system_prompt[:100]}...")
             logger.debug(f"User prompt length: {len(user_message)} chars")
 
