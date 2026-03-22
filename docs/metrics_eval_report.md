@@ -192,15 +192,14 @@ Within the same combined score, ties are broken by `gen_avg` then `retrieval_avg
 
 ## 6. Improvement Recommendations
 
-1. Investigate why KG and Rerank conflict — consider applying KG boost only to BM25 or as a pre-rerank filter.
-2. Improve citation quality: citation_hit_rate is the dominant gen_avg term; improving citation extraction or
-   format consistency will have the largest impact on overall score.
-3. Expand GT set further (currently 32 questions) to reduce per-metric variance — especially for MRR and MAP
-   which are sensitive to single-question rank flips.
-4. Tune `HYBRID_ALPHA` to find the optimal BM25/vector blend; current results show Hybrid retrieval
-   (recall 0.880) slightly below BM25_Rerank recall (0.896) before rerank.
-5. Consider evaluating semantic similarity (BERTScore) alongside ROUGE/token-F1 to better capture
-   semantically correct but lexically different answers.
+For strategy-level operational guidance aligned with these findings, also see:
+`docs/rag_strategies_guide.md` section "Latest Actionable Recommendations".
+
+1. Keep `ENABLE_KG=false` when `ENABLE_RERANK=true` for now; if KG is needed, test it as BM25-only assist or pre-rerank filter with strict A/B checks.
+2. Prioritize `citation_hit_rate` improvements (citation extraction and citation format normalization), since it is the strongest contributor to `gen_avg` in this batch.
+3. Expand and diversify the GT set (currently 32 questions), especially low-frequency legal scenarios, to reduce variance in MRR/MAP conclusions.
+4. Jointly tune `HYBRID_ALPHA` and `RERANK_CANDIDATE_K`; compare BM25_Rerank vs Hybrid_Rerank to verify whether vector retrieval is adding consistent incremental value.
+5. Add semantic generation metrics (e.g., BERTScore) and targeted error slicing for `exact_match=0` cases to capture semantic correctness beyond lexical overlap.
 
 ## 7. Reproducibility Commands
 
