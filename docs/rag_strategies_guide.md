@@ -135,6 +135,8 @@ Pros:
 Cons:
 - Highest latency and operational complexity.
 - More tuning knobs (`HYBRID_ALPHA`, `KG_BOOST_WEIGHT`, candidate_k, rerank model).
+- In the latest 32-question evaluation, KG + rerank under the hybrid path reduced generation quality
+	versus rerank-only (especially citation hit rate), so this setup should be validated per workload.
 
 Best use cases:
 - High-stakes legal/tax QA where answer quality is prioritized over latency.
@@ -177,7 +179,7 @@ Use when:
 | Fast baseline with balanced quality | Strategy A |
 | Better precision / less noisy top-k | Strategy B |
 | Entity-heavy legal references | Strategy C |
-| Best overall quality (higher latency) | Strategy D |
+| Best overall quality in latest run | Strategy B (Hybrid + Rerank, KG off) |
 | Embedding outage or low budget | BM25-only mode |
 
 ## 6. Current Project Reality Check
@@ -207,3 +209,12 @@ Track at least:
 - Cost/latency: average retrieval+rereank time per query
 
 This makes strategy trade-offs explicit and reproducible.
+
+## 8. Latest Actionable Recommendations
+Based on the latest evaluation batch (32 questions):
+
+1. Keep `ENABLE_KG=false` when `ENABLE_RERANK=true` for now; if KG is needed, test it as BM25-only assist or pre-rerank filter with strict A/B checks.
+2. Prioritize `citation_hit_rate` improvements (citation extraction and citation format normalization), since it is the strongest contributor to `gen_avg` in this batch.
+3. Expand and diversify the GT set (currently 32 questions), especially low-frequency legal scenarios, to reduce variance in MRR/MAP conclusions.
+4. Jointly tune `HYBRID_ALPHA` and `RERANK_CANDIDATE_K`; compare BM25_Rerank vs Hybrid_Rerank to verify whether vector retrieval is adding consistent incremental value.
+5. Add semantic generation metrics (e.g., BERTScore) and targeted error slicing for `exact_match=0` cases to capture semantic correctness beyond lexical overlap.

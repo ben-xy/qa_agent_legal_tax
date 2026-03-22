@@ -66,6 +66,7 @@ qa_agent_legal_tax/
 │   ├── metrics_eval_report.md
 │   ├── chunking_strategies_guide.md
 │   ├── rag_strategies_guide.md
+│   ├── knowledge_graph_guide.md
 ├── notebooks/                  # Notebook Web UI
 ├── tests/                      # 单元测试
 ├── config.py                   # 配置管理
@@ -81,6 +82,8 @@ qa_agent_legal_tax/
 - `docs/metrics_eval_report.md`：说明检索与生成指标定义，汇总最近实验结果，并给出诊断与改进建议。
 - `docs/chunking_strategies_guide.md`：总结当前项目中的分块策略实现、优缺点与适用场景。
 - `docs/rag_strategies_guide.md`：说明当前 RAG 策略组合（Hybrid、Rerank、KG）及其优劣与选型建议。
+    - 快速入口：可直接查看其中 `Latest Actionable Recommendations` 小节获取当前批次可落地建议。
+- `docs/knowledge_graph_guide.md`：系统说明 KG 的实现方式（实体抽取、图构建、查询扩展、打分增益）、配置项与实验表现。
 
 ## 安装与快速开始
 
@@ -277,8 +280,8 @@ flake8 src/
 - [X] 评估结果集
 - [X] Web UI（Notebook + Gradio）
 - [X] 知识图谱
+- [X] 法律领域微调模型
 - [ ] API 接口
-- [ ] 法律领域微调模型
 - [ ] 财务报表生成能力
 - [ ] 交互式文档上传
 
