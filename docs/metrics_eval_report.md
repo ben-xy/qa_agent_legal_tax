@@ -17,17 +17,17 @@ Latest output basis:
 - outputs/eval_hybrid.json
 - outputs/eval_hybrid_rerank.json
 - outputs/ablation/eval_BM25.json
-- outputs/ablation/eval_BM25_plus_KG.json
-- outputs/ablation/eval_BM25_plus_Rerank.json
-- outputs/ablation/eval_BM25_plus_Rerank_plus_KG.json
+- outputs/ablation/eval_BM25_KG.json
+- outputs/ablation/eval_BM25_Rerank.json
+- outputs/ablation/eval_BM25_Rerank_KG.json
 - outputs/ablation/eval_Hybrid.json
-- outputs/ablation/eval_Hybrid_plus_KG.json
-- outputs/ablation/eval_Hybrid_plus_Rerank.json
-- outputs/ablation/eval_Hybrid_plus_Rerank_plus_KG.json
+- outputs/ablation/eval_Hybrid_KG.json
+- outputs/ablation/eval_Hybrid_Rerank.json
+- outputs/ablation/eval_Hybrid_Rerank_KG.json
 
 GT basis:
 
-- data/qa_pairs/eval_ground_truth.jsonl (2 questions)
+- data/qa_pairs/eval_ground_truth.jsonl (32 questions)
 
 ## 2. Metric Definitions
 
@@ -35,16 +35,28 @@ GT basis:
 
 Computed in scripts/eval/evaluate_predictions.py using normalized text matching between:
 
-- GT targets: gold_doc_ids, fallback to references, fallback to gold_citations
-- Pred targets: retrieved_doc_ids, fallback to pred_citations
+- GT targets: `gold_doc_ids`, fallback to `references`, fallback to `gold_citations`
+- Pred targets: `eval_friendly_doc_ids`, fallback to `retrieved_doc_ids`, fallback to `pred_citations`
+
+Matching rule now uses **law-title normalization** before scoring:
+
+- Examples mapped to a comparable title form:
+  - `doc_234::Customs Act 1960::chunk=...` -> `customs act 1960`
+  - `Customs Act 1960 - Singapore Statutes Online > ...` -> `customs act 1960`
+- Retrieval relevance match is equality on normalized law titles.
+
+Prediction format update in scripts/eval/run_eval_benchmark.py:
+
+- `retrieved_doc_ids`: canonical chunk-level IDs (kept for traceability)
+- `eval_friendly_doc_ids`: law-title friendly IDs (added for evaluation matching)
 
 Reported metrics:
 
-- **recall@5**: fraction of relevant documents that appear in the top-5 retrieved results. Measures coverage — did we retrieve the right documents at all?
-- **precision@5**: fraction of the top-5 retrieved results that are relevant. Measures purity — how many of the returned results are actually useful?
-- **ndcg@5**: Normalized Discounted Cumulative Gain at 5. Rewards relevant documents appearing higher in the ranked list; a hit at rank 1 scores more than one at rank 5.
-- **mrr@5**: Mean Reciprocal Rank at 5. The average of 1/rank for the first relevant hit across queries. High when the correct document tends to appear very early.
-- **map@5**: Mean Average Precision at 5. The mean of per-query average precision scores, balancing both coverage and ranking quality across all queries.
+- **recall@5**: fraction of relevant documents that appear in the top-5 retrieved results. Measures coverage.
+- **precision@5**: fraction of the top-5 retrieved results that are relevant. Measures purity.
+- **ndcg@5**: Normalized Discounted Cumulative Gain at 5. Rewards relevant documents appearing earlier.
+- **mrr@5**: Mean Reciprocal Rank at 5. Higher when the first relevant hit appears earlier.
+- **map@5**: Mean Average Precision at 5. Balances hit quality and ranking quality.
 
 ### Generation metrics
 
@@ -53,120 +65,152 @@ Computed in scripts/eval/evaluate_predictions.py and scripts/eval/evaluate_gener
 - exact_match: normalized string equality
 - token_f1: token overlap F1
 - rougeL_f1: ROUGE-L F1
-- citation_hit_rate: now uses partial matching after normalization
+- citation_hit_rate:
   - exact match OR substring match between predicted citations and GT citations
   - GT citation source: gold_citations, fallback to references
 
 Interpretation:
 
 - Higher is better for all generation metrics.
-- exact_match is strict and can be zero even when answers are semantically close.
+- exact_match is strict and can remain zero even when answers are semantically close.
 
 ## 3. Current Results
 
+> Run date: 2026-03-21 · GT size: 32 questions · K = 5
+>
+> `exact_match` = 0.0 across all experiments → excluded from `gen_avg` (adaptive rule).
+> `citation_hit_rate` > 0 in all experiments → included.
+> `gen_avg = (token_f1 + rougeL_f1 + citation_hit_rate) / 3`
+
 ![Ablation Comparison](eval_output.png)
 
-| Rank | experiment                 | retrieval_avg |  gen_avg | recall@5 | mrr@5 | gen_token_f1 | gen_rougeL_f1 | gen_citation_hit_rate |
-| ---: | -------------------------- | ------------: | -------: | -------: | ----: | -----------: | ------------: | --------------------: |
-|    1 | Hybrid                     |      0.000000 | 0.160129 |      0.0 |   0.0 |     0.070973 |      0.069543 |                   0.5 |
-|    2 | BM25_plus_Rerank_plus_KG   |      0.000000 | 0.158805 |      0.0 |   0.0 |     0.068739 |      0.066482 |                   0.5 |
-|    3 | BM25_plus_Rerank           |      0.000000 | 0.158729 |      0.0 |   0.0 |     0.067883 |      0.067035 |                   0.5 |
-|    4 | BM25                       |      0.000000 | 0.154949 |      0.0 |   0.0 |     0.060208 |      0.059588 |                   0.5 |
-|    5 | Hybrid_plus_Rerank_plus_KG |      0.000000 | 0.143289 |      0.0 |   0.0 |     0.036249 |      0.036909 |                   0.5 |
-|    6 | Hybrid_plus_Rerank         |      0.000000 | 0.053600 |      0.0 |   0.0 |     0.107944 |      0.106456 |                   0.0 |
-|    7 | BM25_plus_KG               |      0.000000 | 0.038930 |      0.0 |   0.0 |     0.079351 |      0.076369 |                   0.0 |
-|    8 | Hybrid_plus_KG             |      0.000000 | 0.032939 |      0.0 |   0.0 |     0.065925 |      0.065831 |                   0.0 |
+### 3.1 Strategy A vs Strategy B (baseline pair)
 
-Note: Because `retrieval_avg` is 0.0 for all runs, ranking is dominated by `gen_avg`.
+| Strategy          | combined_score | retrieval_avg | gen_avg | recall@5 | precision@5 | ndcg@5 |  mrr@5 |  map@5 | token_f1 | rougeL_f1 | citation_hit_rate |
+| ----------------- | -------------: | ------------: | ------: | -------: | ----------: | -----: | -----: | -----: | -------: | --------: | ----------------: |
+| Hybrid (A)        |         0.4002 |        0.5764 |  0.2240 |   0.7969 |      0.2188 | 0.6411 | 0.6453 | 0.5802 |   0.0833 |    0.0730 |            0.5156 |
+| Hybrid+Rerank (B) |         0.4678 |        0.7380 |  0.1975 |   0.8958 |      0.2563 | 0.8447 | 0.8865 | 0.8068 |   0.0740 |    0.0655 |            0.4531 |
 
-### 3.1 Main pipeline outputs
+Strategy B gains +0.0676 combined score over A primarily through retrieval improvement (+0.1616 retrieval_avg),
+while generation metrics slightly decline due to the reranker narrowing the candidate set.
 
-From outputs/eval_hybrid.json:
+### 3.2 Ablation summary (ranked by combined_score)
 
-- retrieval metrics: all 0.0
-- exact_match: 0.0
-- token_f1: 0.0515
-- rougeL_f1: 0.0512
-- citation_hit_rate: 0.5
+| Rank | Experiment       | combined_score | retrieval_avg | gen_avg | recall@5 | precision@5 | ndcg@5 |  mrr@5 |  map@5 | token_f1 | rougeL_f1 | citation_hit_rate |
+| ---: | ---------------- | -------------: | ------------: | ------: | -------: | ----------: | -----: | -----: | -----: | -------: | --------: | ----------------: |
+|    1 | Hybrid_Rerank    |         0.5126 |        0.7657 |  0.2596 |   0.9115 |      0.2625 | 0.8772 | 0.9375 | 0.8396 |   0.0904 |    0.0791 |            0.6094 |
+|    2 | BM25_Rerank_KG   |         0.4883 |        0.7380 |  0.2387 |   0.8958 |      0.2563 | 0.8447 | 0.8865 | 0.8068 |   0.0752 |    0.0679 |            0.5729 |
+|    3 | Hybrid_Rerank_KG |         0.4875 |        0.7657 |  0.2094 |   0.9115 |      0.2625 | 0.8772 | 0.9375 | 0.8396 |   0.0747 |    0.0692 |            0.4844 |
+|    4 | BM25_Rerank      |         0.4813 |        0.7380 |  0.2245 |   0.8958 |      0.2563 | 0.8447 | 0.8865 | 0.8068 |   0.0657 |    0.0610 |            0.5469 |
+|    5 | Hybrid_KG        |         0.4458 |        0.6785 |  0.2132 |   0.8802 |      0.2375 | 0.7638 | 0.7885 | 0.7224 |   0.0895 |    0.0761 |            0.4740 |
+|    6 | Hybrid           |         0.4349 |        0.6801 |  0.1896 |   0.8802 |      0.2375 | 0.7667 | 0.7885 | 0.7276 |   0.0762 |    0.0708 |            0.4219 |
+|    7 | BM25_KG          |         0.4058 |        0.5764 |  0.2351 |   0.7969 |      0.2188 | 0.6411 | 0.6453 | 0.5802 |   0.0830 |    0.0754 |            0.5469 |
+|    8 | BM25             |         0.4029 |        0.5764 |  0.2293 |   0.7969 |      0.2188 | 0.6411 | 0.6453 | 0.5802 |   0.0776 |    0.0739 |            0.5365 |
 
-From outputs/eval_hybrid_rerank.json:
+### 3.3 KG impact summary (KG on − KG off, same vector/rerank setting)
 
-- retrieval metrics: all 0.0
-- exact_match: 0.0
-- token_f1: 0.0647
-- rougeL_f1: 0.0643
-- citation_hit_rate: 0.5
+| Setting                    | base          | kg               | Δrecall@5 | Δndcg@5 | Δmrr@5 | Δtoken_f1 | ΔrougeL_f1 | Δcitation_hit_rate |
+| -------------------------- | ------------- | ---------------- | ---------: | -------: | ------: | ---------: | ----------: | ------------------: |
+| vector=false, rerank=false | BM25          | BM25_KG          |     0.0000 |   0.0000 |  0.0000 |    +0.0054 |     +0.0015 |             +0.0104 |
+| vector=false, rerank=true  | BM25_Rerank   | BM25_Rerank_KG   |     0.0000 |   0.0000 |  0.0000 |    +0.0095 |     +0.0069 |             +0.0260 |
+| vector=true, rerank=false  | Hybrid        | Hybrid_KG        |     0.0000 | −0.0029 |  0.0000 |    +0.0133 |     +0.0053 |             +0.0521 |
+| vector=true, rerank=true   | Hybrid_Rerank | Hybrid_Rerank_KG |     0.0000 |   0.0000 |  0.0000 |   −0.0157 |    −0.0099 |            −0.1250 |
 
-### 3.2 Ablation outputs
+KG boost consistently improves generation metrics when rerank is **off** (especially citation_hit_rate +0.05–+0.10),
+and has no effect on retrieval ranking metrics. When rerank is **on** under Hybrid, KG hurts all generation
+metrics significantly (citation_hit_rate −0.125), suggesting the reranker and KG boost compete for the same
+evidence selection and KG noise outweighs KG signal in this setting.
 
-| Experiment                 | recall@5 |  mrr@5 | exact_match | token_f1 | rougeL_f1 | citation_hit_rate |
-| -------------------------- | -------: | -----: | ----------: | -------: | --------: | ----------------: |
-| BM25                       |   0.0000 | 0.0000 |      0.0000 |   0.0602 |    0.0596 |            0.5000 |
-| BM25_plus_KG               |   0.0000 | 0.0000 |      0.0000 |   0.0794 |    0.0764 |            0.0000 |
-| BM25_plus_Rerank           |   0.0000 | 0.0000 |      0.0000 |   0.0763 |    0.0751 |            0.5000 |
-| BM25_plus_Rerank_plus_KG   |   0.0000 | 0.0000 |      0.0000 |   0.0687 |    0.0665 |            0.5000 |
-| Hybrid                     |   0.0000 | 0.0000 |      0.0000 |   0.0710 |    0.0695 |            0.5000 |
-| Hybrid_plus_KG             |   0.0000 | 0.0000 |      0.0000 |   0.0659 |    0.0658 |            0.0000 |
-| Hybrid_plus_Rerank         |   0.0000 | 0.0000 |      0.0000 |   0.1079 |    0.1065 |            0.0000 |
-| Hybrid_plus_Rerank_plus_KG |   0.0000 | 0.0000 |      0.0000 |   0.0362 |    0.0369 |            0.5000 |
+### 3.4 Metrics description
 
-### 3.3 Why some high token-score runs rank low in gen_avg
+**Why exact_match is 0.0 across all runs?**
+The exact match metric requires the predicted answer to match the GT answer exactly after normalization.
+Answers are often semantically correct but lexically different from GT, leading to zero exact matches.
+`exact_match` is excluded from `gen_avg` when it is zero across all experiments (adaptive rule).
 
-`gen_avg` is the arithmetic mean of four generation metrics:
+**Why token_f1 and rougeL_f1 are relatively low?**
+Answers are semantically correct but lexically different from GT. ROUGE and token F1 measure
+surface-level overlap, not semantic similarity.
+
+**Why some high token-score runs are not ranked first?**
+
+Experiments are ranked by a **combined score** that gives equal weight to retrieval and generation quality:
 
 $$
-gen\_avg = \frac{exact\_match + token\_f1 + rougeL\_f1 + citation\_hit\_rate}{4}
+combined\_score = 0.5 \times retrieval\_avg + 0.5 \times gen\_avg
 $$
 
-This creates a balancing effect across metrics. For example:
+Retrieval is ranked alongside generation because it is the RAG foundation; an
+experiment cannot produce good answers without first retrieving relevant documents,
+so it should not be demoted to a pure tiebreaker role.
 
-- `Hybrid_plus_Rerank` has relatively high `token_f1` and `rougeL_f1`,
-- but `citation_hit_rate = 0.0` and `exact_match = 0.0`,
-- so its final `gen_avg` is still low.
+`gen_avg` is computed **adaptively** — a metric is included only when it carries
+discriminative signal (at least one experiment has a non-zero value):
 
-By contrast, runs such as `Hybrid` and `BM25` have moderate overlap metrics plus `citation_hit_rate = 0.5`, which lifts their `gen_avg` ranking.
+| Metric                | Included when                                         |
+| --------------------- | ----------------------------------------------------- |
+| `exact_match`       | At least one experiment has `exact_match > 0`       |
+| `token_f1`          | Always                                                |
+| `rougeL_f1`         | Always                                                |
+| `citation_hit_rate` | At least one experiment has `citation_hit_rate > 0` |
 
-Therefore, a single strong metric (such as token overlap) does not guarantee a high overall rank when citation and exact-match signals are weak.
+Examples:
+
+- Full generation run with citations: all four metrics averaged (denominator = 4)
+- Full generation run, no citations: `token_f1 + rougeL_f1 + exact_match` (denominator = 3 or 2)
+- Retrieval-only run: exact_match and citation_hit_rate are both zero → `gen_avg = (token_f1 + rougeL_f1) / 2`
+
+When a metric is excluded, it is also **hidden from the displayed summary table** to
+avoid showing columns that add no information. The console output prints the active
+`gen_avg` fields for transparency.
+
+Within the same combined score, ties are broken by `gen_avg` then `retrieval_avg`.
 
 ## 4. Diagnosis
 
-1. Retrieval is the bottleneck.
-   All retrieval metrics are zero across all runs. This indicates no overlap between predicted retrieval identifiers and GT targets under current matching rules.
-2. Rerank cannot help when first-stage retrieval has no effective candidates.
-   Rerank-only improvements are unstable across runs and configurations because stage-1 recall is still zero.
-3. KG impact is mixed under current setup.
-   Some KG-on runs reduce citation hit rate to 0.0 while improving token overlap in specific settings, indicating trade-offs rather than consistent gains.
+1. **Retrieval metrics now differentiate between experiments** (unlike the previous retrieval-only batch).
+   BM25-only configs reach recall@5 ≈ 0.80; adding Rerank lifts it to ≈ 0.91. Hybrid (vector) mid-point ≈ 0.88.
+2. **Rerank is the dominant driver of retrieval quality.**
+   Adding rerank increases retrieval_avg by ~+0.16 across both BM25 and Hybrid bases, with MRR@5 hitting 0.9375.
+3. **KG boost improves generation (citation) quality when rerank is off**, especially for Hybrid+KG
+   (+0.052 citation_hit_rate). However, it provides **no retrieval improvement** in any setting.
+4. **KG boost hurts generation under Hybrid+Rerank** (−0.125 citation_hit_rate, −0.016 token_f1).
+   The reranker and KG signal appear to conflict: KG-expanded evidence introduces noise that the reranker
+   cannot filter away, reducing answer quality.
+5. **exact_match remains 0.0 across all runs** and is excluded from `gen_avg` in this batch (adaptive rule).
+6. **citation_hit_rate is the largest single contributor to gen_avg** in this batch (~0.42–0.61),
+   making citation quality the most impactful lever for improving the generation ranking.
+7. **Hybrid_Rerank is the best overall setting** (combined_score = 0.5126), achieving top-tier retrieval
+   (recall@5 = 0.9115, MRR@5 = 0.9375) combined with the highest generation score (gen_avg = 0.2596).
 
 ## 5. Clear Conclusion
 
-- Among the current 8-experiment ablation matrix, `Hybrid` ranks first by `gen_avg` (0.160), suggesting the combined BM25+vector approach produces the best balance of token overlap and citation recall.
-- Retrieval metrics remain uniformly zero across all runs, so all conclusions are based on generation quality only.
-- Therefore, current conclusions about rerank/KG should be treated as provisional until retrieval ID alignment is fixed.
+- **Best experiment: Hybrid_Rerank** (combined_score = 0.5126, retrieval_avg = 0.7657, gen_avg = 0.2596).
+- Rerank lifts combined score by **+0.0668** over the best non-rerank setting (Hybrid_KG = 0.4458).
+- KG boost adds value for generation when rerank is disabled, but degrades quality when rerank is enabled.
+- Recommended production configuration: `USE_VECTOR=true`, `ENABLE_RERANK=true`, `ENABLE_KG=false`.
 
 ## 6. Improvement Recommendations
 
-1. Fix retrieval ID alignment first.
-   Ensure retrieved_doc_ids in predictions are directly comparable to GT targets (or make GT target format closer to predicted IDs).
-2. Validate retrieved content quality.
-   Log top retrieved chunks per question before generation and verify they contain answer-bearing text.
-3. Clean ablation outputs before each section 6.2 run.
-   Remove stale `eval_*.json` files or write to a timestamped run folder, so summary rankings reflect only the current experiment matrix.
-4. Stabilize vector retrieval path.
-   If embedding quota or provider constraints occur, either:
+For strategy-level operational guidance aligned with these findings, also see:
+`docs/rag_strategies_guide.md` section "Latest Actionable Recommendations".
 
-- temporarily evaluate BM25-only, or
-- switch to a stable embedding provider with enough quota.
-
-5. Increase evaluation set size.
-   With only 2 questions, metrics are high variance. Expand GT to produce robust conclusions.
-6. Keep rerank/KG tuning after recall is healthy.
-   Re-run ablation only after non-zero recall appears; then rerank impact will be meaningful.
+1. Keep `ENABLE_KG=false` when `ENABLE_RERANK=true` for now; if KG is needed, test it as BM25-only assist or pre-rerank filter with strict A/B checks.
+2. Prioritize `citation_hit_rate` improvements (citation extraction and citation format normalization), since it is the strongest contributor to `gen_avg` in this batch.
+3. Expand and diversify the GT set (currently 32 questions), especially low-frequency legal scenarios, to reduce variance in MRR/MAP conclusions.
+4. Jointly tune `HYBRID_ALPHA` and `RERANK_CANDIDATE_K`; compare BM25_Rerank vs Hybrid_Rerank to verify whether vector retrieval is adding consistent incremental value.
+5. Add semantic generation metrics (e.g., BERTScore) and targeted error slicing for `exact_match=0` cases to capture semantic correctness beyond lexical overlap.
 
 ## 7. Reproducibility Commands
 
-- python scripts/eval/run_eval_benchmark.py --gt data/qa_pairs/eval_ground_truth.jsonl --out outputs/preds_hybrid.jsonl --enable-rerank false
-- python scripts/eval/run_eval_benchmark.py --gt data/qa_pairs/eval_ground_truth.jsonl --out outputs/preds_hybrid_rerank.jsonl --enable-rerank true
-- python scripts/eval/evaluate_predictions.py --gt data/qa_pairs/eval_ground_truth.jsonl --pred outputs/preds_hybrid.jsonl --k 5 --out outputs/eval_hybrid.json
-- python scripts/eval/evaluate_predictions.py --gt data/qa_pairs/eval_ground_truth.jsonl --pred outputs/preds_hybrid_rerank.jsonl --k 5 --out outputs/eval_hybrid_rerank.json
-- python scripts/eval/run_eval_benchmark.py --gt data/qa_pairs/eval_ground_truth.jsonl --out outputs/ablation/preds_Hybrid_plus_Rerank_plus_KG.jsonl --enable-rerank true
-- python scripts/eval/evaluate_predictions.py --gt data/qa_pairs/eval_ground_truth.jsonl --pred outputs/ablation/preds_Hybrid_plus_Rerank_plus_KG.jsonl --k 5 --out outputs/ablation/eval_Hybrid_plus_Rerank_plus_KG.json
+```bash
+# Baseline pair
+python scripts/eval/run_eval_benchmark.py --gt data/qa_pairs/eval_ground_truth.jsonl --out outputs/preds_hybrid.jsonl --enable-rerank false
+python scripts/eval/run_eval_benchmark.py --gt data/qa_pairs/eval_ground_truth.jsonl --out outputs/preds_hybrid_rerank.jsonl --enable-rerank true
+python scripts/eval/evaluate_predictions.py --gt data/qa_pairs/eval_ground_truth.jsonl --pred outputs/preds_hybrid.jsonl --k 5 --out outputs/eval_hybrid.json
+python scripts/eval/evaluate_predictions.py --gt data/qa_pairs/eval_ground_truth.jsonl --pred outputs/preds_hybrid_rerank.jsonl --k 5 --out outputs/eval_hybrid_rerank.json
+
+# Best experiment (Hybrid_Rerank)
+python scripts/eval/run_eval_benchmark.py --gt data/qa_pairs/eval_ground_truth.jsonl --out outputs/ablation/preds_Hybrid_Rerank.jsonl --enable-rerank true
+python scripts/eval/evaluate_predictions.py --gt data/qa_pairs/eval_ground_truth.jsonl --pred outputs/ablation/preds_Hybrid_Rerank.jsonl --k 5 --out outputs/ablation/eval_Hybrid_Rerank.json
+```

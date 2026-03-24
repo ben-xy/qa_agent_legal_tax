@@ -47,7 +47,7 @@ class LegalValidator:
             result['confidence'] = 0.5
             result['issues'].append("Limited supporting context")
         
-        logger.info(f"Answer validated: {result['is_valid']}")
+        logger.info(f"Answer validated: {result['is_valid']} | confidence={result['confidence']:.3f}")
         
         return result
     

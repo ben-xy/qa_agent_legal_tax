@@ -66,6 +66,7 @@ qa_agent_legal_tax/
 │   ├── metrics_eval_report.md
 │   ├── chunking_strategies_guide.md
 │   ├── rag_strategies_guide.md
+│   ├── knowledge_graph_guide.md
 ├── notebooks/                  # Notebook Web UI
 ├── tests/                      # 单元测试
 ├── config.py                   # 配置管理
@@ -81,6 +82,8 @@ qa_agent_legal_tax/
 - `docs/metrics_eval_report.md`：说明检索与生成指标定义，汇总最近实验结果，并给出诊断与改进建议。
 - `docs/chunking_strategies_guide.md`：总结当前项目中的分块策略实现、优缺点与适用场景。
 - `docs/rag_strategies_guide.md`：说明当前 RAG 策略组合（Hybrid、Rerank、KG）及其优劣与选型建议。
+    - 快速入口：可直接查看其中 `Latest Actionable Recommendations` 小节获取当前批次可落地建议。
+- `docs/knowledge_graph_guide.md`：系统说明 KG 的实现方式（实体抽取、图构建、查询扩展、打分增益）、配置项与实验表现。
 
 ## 安装与快速开始
 
@@ -116,7 +119,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 LLM_PROVIDER=gemini
 EMBEDDING_PROVIDER=gemini
 GOOGLE_API_KEY=your_google_api_key_here
-GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+GEMINI_EMBEDDING_MODEL=gemini-embedding-2-preview
 ```
 
 5. 验证并运行：
@@ -203,7 +206,7 @@ print(f"Confidence: {response.confidence_score:.1%}")
 - `LLM_MODEL`：Gemini 对话模型（默认 `emini-2.5-flash`）
 - `GEMINI_LLM_MODEL`：Gemini 对话模型（默认 `gemini-2.5-flash`）
 - `EMBEDDING_MODEL`：OpenAI embedding 模型（默认 `text-embedding-3-small`）
-- `GEMINI_EMBEDDING_MODEL`：Gemini embedding 模型（默认 `models/text-embedding-004`）
+- `GEMINI_EMBEDDING_MODEL`：Gemini embedding 模型（默认 `gemini-embedding-2-preview`）
 - `RETRIEVAL_TOP_K`：检索文档数量（默认 5）
 - `LOG_LEVEL`：日志等级（DEBUG、INFO、WARNING、ERROR）
 
@@ -277,8 +280,8 @@ flake8 src/
 - [X] 评估结果集
 - [X] Web UI（Notebook + Gradio）
 - [X] 知识图谱
+- [X] 法律领域微调模型
 - [ ] API 接口
-- [ ] 法律领域微调模型
 - [ ] 财务报表生成能力
 - [ ] 交互式文档上传
 

@@ -56,7 +56,7 @@ def initialize_agent() -> QAAgent:
 def print_welcome():
     """Print welcome message."""
     print("\n" + "=" * 80)
-    print("   Singapore Legal & Tax QA Agent - CS614 GenAI")
+    print("   Singapore Legal & Tax QA Agent")
     print("=" * 80)
     print("\nThis agent can answer questions about:")
     print("  • Singapore legal regulations and acts")
@@ -75,6 +75,13 @@ def print_response(response):
     print("\n" + "-" * 80)
     print(f"Answer:\n{response.answer}")
     print(f"\nConfidence Score: {response.confidence_score:.1%}")
+    if response.confidence_breakdown:
+        breakdown = response.confidence_breakdown
+        #print("Confidence Breakdown:")
+        print(f"  • Retrieval Quality: {breakdown.get('retrieval_quality', 0.0):.1%}")
+        print(f"  • Answer Consistency: {breakdown.get('answer_consistency', 0.0):.1%}")
+        print(f"  • Citation Coverage: {breakdown.get('citation_coverage', 0.0):.1%}")
+        print(f"  • Final Weighted Score: {breakdown.get('final', response.confidence_score):.1%}")
     print(f"Processing Time: {response.processing_time:.2f}s")
     
     if response.sources:

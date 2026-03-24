@@ -66,6 +66,7 @@ qa_agent_legal_tax/
 │   ├── metrics_eval_report.md
 │   ├── chunking_strategies_guide.md
 │   ├── rag_strategies_guide.md
+│   ├── knowledge_graph_guide.md
 ├── notebooks/                  # Notebook-based Web UI
 ├── tests/                      # Unit tests
 ├── config.py                   # Configuration management
@@ -81,6 +82,8 @@ The following documents are maintained under `docs/`:
 - `docs/metrics_eval_report.md`: Explains retrieval/generation metric definitions, summarizes latest experiment results, and provides diagnosis plus improvement recommendations.
 - `docs/chunking_strategies_guide.md`: Summarizes the active chunking strategies, trade-offs, and recommended usage scenarios in this project.
 - `docs/rag_strategies_guide.md`: Documents current RAG strategy variants (hybrid, rerank, KG), with pros/cons and strategy selection guidance.
+  - Quick entry: see section `Latest Actionable Recommendations` for the most recent operation-ready guidance.
+- `docs/knowledge_graph_guide.md`: Details KG implementation (entity extraction, graph build, query expansion, scoring boost), configuration knobs, and observed behavior in evaluation.
 
 ## Installation & Quick Start
 
@@ -116,7 +119,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 LLM_PROVIDER=gemini
 EMBEDDING_PROVIDER=gemini
 GOOGLE_API_KEY=your_google_api_key_here
-GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+GEMINI_EMBEDDING_MODEL=gemini-embedding-2-preview
 ```
 
 5. **Verify and run**
@@ -206,7 +209,7 @@ Set environment variables in .env (or edit `config.py`):
 - `LLM_MODEL`: Gemini chat model (default: `emini-2.5-flash`)
 - `GEMINI_LLM_MODEL`: Gemini chat model (default: `gemini-2.5-flash`)
 - `EMBEDDING_MODEL`: OpenAI embedding model (default: `text-embedding-3-small`)
-- `GEMINI_EMBEDDING_MODEL`: Gemini embedding model (default: `models/text-embedding-004`)
+- `GEMINI_EMBEDDING_MODEL`: Gemini embedding model (default: `gemini-embedding-2-preview`)
 - `RETRIEVAL_TOP_K`: Number of documents to retrieve (default: 5)
 - `LOG_LEVEL`: Logging level (DEBUG, INFO, WARNING, ERROR)
 
@@ -280,8 +283,8 @@ Hybrid retrieval combines:
 - [X] Evaluation Metrics
 - [X] Web UI interface (notebook + Gradio)
 - [X] Knowledge Graph
+- [X] Fine-tuned models for legal domain
 - [ ] API endpoints
-- [ ] Fine-tuned models for legal domain
 - [ ] Financial report generation
 - [ ] Interactive document upload
 

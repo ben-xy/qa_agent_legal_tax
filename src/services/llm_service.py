@@ -141,6 +141,7 @@ class LLMService:
                 company_info=company_info
             )
             
+            logger.info(f"LLM input | context_docs={len(context)} | prompt_len={len(user_message)} chars")
             logger.debug(f"System prompt: {system_prompt[:100]}...")
             logger.debug(f"User prompt length: {len(user_message)} chars")
 
@@ -172,8 +173,22 @@ class LLMService:
         current_length = 0
         
         for doc in documents:
-            source = doc.get('source', 'Unknown Source')
-            content = doc.get('content', '')[:500]
+            metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+            source = (
+                doc.get("source")
+                or metadata.get("Law")
+                or metadata.get("source")
+                or metadata.get("title")
+                or "Unknown Source"
+            )
+            content = (
+                doc.get("content")
+                or doc.get("page_content")
+                or doc.get("text")
+                or doc.get("chunk")
+                or doc.get("body")
+                or ""
+            )[:500]
             
             snippet = f"Source: {source}\nContent: {content}\n"
             
