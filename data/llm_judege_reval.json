@@ -1,0 +1,42 @@
+[
+  {
+    "score": 5,
+    "reasoning": "The fine-tuned model's answer aligns perfectly with the ground truth[cite: 1]."
+  },
+  {
+    "score": 2,
+    "reasoning": "The model deviates notably from the ground truth by providing a general economic purpose rather than the specific statutory mechanism of imposing duty on dutiable goods[cite: 1]."
+  },
+  {
+    "score": 2,
+    "reasoning": "The model completely misses the functional description of administering laws and supervising import and export controls [cite: 1, 2], opting instead for a vague legalistic definition of power derivation[cite: 2]."
+  },
+  {
+    "score": 1,
+    "reasoning": "The model hallucinates an entirely incorrect law name and year, completely failing the factual accuracy check against the ground truth[cite: 2]."
+  },
+  {
+    "score": 2,
+    "reasoning": "The model misses critical details regarding housing and healthcare needs [cite: 3], and inaccurately characterizes the scheme strictly as a pension scheme rather than mandatory savings[cite: 2, 3]."
+  },
+  {
+    "score": 2,
+    "reasoning": "The model significantly omits the requirement for employers to make contributions[cite: 3]. It also introduces a specific statutory citation and exemption that are unverified by the ground truth[cite: 3]."
+  },
+  {
+    "score": 5,
+    "reasoning": "The model provides a comprehensive and factually correct equivalent, accurately capturing the core concepts of long-term care and severe disability[cite: 3, 4]."
+  },
+  {
+    "score": 1,
+    "reasoning": "The model contains major factual errors, incorrectly stating that payouts begin upon admission to an institution or receiving care at home, rather than upon meeting severe disability criteria[cite: 4, 5]. It also hallucinates a specific section citation[cite: 5]."
+  },
+  {
+    "score": 2,
+    "reasoning": "While correctly identifying that fines and imprisonment are consequences, the model hallucinates highly specific penalty amounts and a specific section that deviate from the broader ground truth[cite: 5]."
+  },
+  {
+    "score": 2,
+    "reasoning": "The model's answer is a vague and partially inaccurate generalization ('economic legislation') that contains significant omissions compared to the specific statutory domains listed in the ground truth[cite: 6]."
+  }
+]
